@@ -3,6 +3,14 @@
 --
 --              Copyright (C) 2013 Makoto Hiroi
 --
+{--
+   オリジナルは、以下で公開されたもので、
+　「お気楽 Haskell プログラミング入門」
+   http://www.nct9.ne.jp/m_hiroi/func/haskell.html
+
+　　これを、Hakellの最新の環境に移植したものです。
+--}
+
 import Data.Char
 import Data.IORef
 
