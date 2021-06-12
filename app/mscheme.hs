@@ -17,9 +17,10 @@ import Data.IORef
 import Control.Monad.Trans.Except
 import System.IO
 
--- import Data.Hashable
 import qualified Data.HashTable.IO as H
 type HashTable k v = H.CuckooHashTable k v
+
+type ScmFunc = Env -> SExpr -> Scm SExpr
 
 -- S 式の定義
 data SExpr = INT  !Integer
@@ -28,9 +29,10 @@ data SExpr = INT  !Integer
            | STR  String
            | CELL SExpr SExpr
            | NIL
-           | PRIM (SExpr -> Scm SExpr)
-           | SYNT (Env -> SExpr -> Scm SExpr)
+           | PRIM ScmFunc
+           | SYNT ScmFunc
            | CLOS SExpr LEnv
+           | MACR SExpr
 
 -- 等値の定義
 instance Eq SExpr where
@@ -98,24 +100,24 @@ errCELL = "Illegal argument, List required"
 errZERO = "Divide by zero"
 
 -- リスト操作
-car :: SExpr -> Scm SExpr
-car NIL = throwE $ strMsg $ "car : " ++ errNEA
-car (CELL (CELL a _) _) = return a
-car _                   = throwE $ strMsg $ "car : " ++ errCELL
+car :: ScmFunc
+car _ NIL = throwE $ strMsg $ "car : " ++ errNEA
+car _ (CELL (CELL a _) _) = return a
+car _ _                   = throwE $ strMsg $ "car : " ++ errCELL
 
-cdr :: SExpr -> Scm SExpr
-cdr NIL = throwE $ strMsg $ "cdr : " ++ errNEA
-cdr (CELL (CELL _ d) _) = return d
-cdr _                   = throwE $ strMsg $ "cdr : " ++ errCELL
+cdr :: ScmFunc
+cdr _ NIL = throwE $ strMsg $ "cdr : " ++ errNEA
+cdr _ (CELL (CELL _ d) _) = return d
+cdr _ _                   = throwE $ strMsg $ "cdr : " ++ errCELL
 
-cons :: SExpr -> Scm SExpr
-cons (CELL a (CELL b _)) = return (CELL a b)
-cons _                   = throwE $ strMsg $ "cons : " ++ errNEA
+cons :: ScmFunc
+cons _ (CELL a (CELL b _)) = return (CELL a b)
+cons _ _                   = throwE $ strMsg $ "cons : " ++ errNEA
 
-pair :: SExpr -> Scm SExpr
-pair NIL                 = throwE $ strMsg $ "pair? : " ++ errNEA
-pair (CELL (CELL _ _) _) = return true
-pair _                   = return false
+pair :: ScmFunc
+pair _ NIL                 = throwE $ strMsg $ "pair? : " ++ errNEA
+pair _ (CELL (CELL _ _) _) = return true
+pair _ _                   = return false
 
 -- 畳み込み
 foldCell :: (SExpr -> SExpr -> Scm SExpr) -> SExpr -> SExpr -> Scm SExpr
@@ -132,8 +134,8 @@ add (REAL x) (INT y)  = return (REAL (x + fromIntegral y))
 add (REAL x) (REAL y) = return (REAL (x + y))
 add _        _        = throwE $ strMsg $ "+ : " ++ errNUM
 
-adds :: SExpr -> Scm SExpr
-adds xs = foldCell add (INT 0) xs
+adds :: ScmFunc
+adds _ xs = foldCell add (INT 0) xs
 
 sub :: SExpr -> SExpr -> Scm SExpr
 sub (INT x)  (INT y)  = return (INT (x - y))
@@ -142,11 +144,11 @@ sub (REAL x) (INT y)  = return (REAL (x - fromIntegral y))
 sub (REAL x) (REAL y) = return (REAL (x - y))
 sub _        _        = throwE $ strMsg $ "- : " ++ errNUM
 
-subs :: SExpr -> Scm SExpr
-subs NIL = throwE $ strMsg $ "- : " ++ errNEA
-subs (CELL (INT a) NIL)  = return (INT (-a))
-subs (CELL (REAL a) NIL) = return (REAL (-a))
-subs (CELL a rest) = foldCell sub a rest
+subs :: ScmFunc
+subs _ NIL = throwE $ strMsg $ "- : " ++ errNEA
+subs _ (CELL (INT a) NIL)  = return (INT (-a))
+subs _ (CELL (REAL a) NIL) = return (REAL (-a))
+subs _ (CELL a rest) = foldCell sub a rest
 
 mul :: SExpr -> SExpr -> Scm SExpr
 mul (INT x)  (INT y)  = return (INT (x * y))
@@ -155,8 +157,8 @@ mul (REAL x) (INT y)  = return (REAL (x * fromIntegral y))
 mul (REAL x) (REAL y) = return (REAL (x * y))
 mul _        _        = throwE $ strMsg $ "- : " ++ errNUM
 
-muls :: SExpr -> Scm SExpr
-muls xs = foldCell mul (INT 1) xs
+muls :: ScmFunc
+muls _ xs = foldCell mul (INT 1) xs
 
 div' :: SExpr -> SExpr -> Scm SExpr
 div' _        (INT 0)  = throwE $ strMsg errZERO
@@ -167,31 +169,31 @@ div' (REAL x) (INT y)  = return (REAL (x / fromIntegral y))
 div' (REAL x) (REAL y) = return (REAL (x / y))
 div' _        _        = throwE $ strMsg $ "- : " ++ errNUM
 
-divs :: SExpr -> Scm SExpr
-divs NIL = throwE $ strMsg $ "/ : " ++ errNEA
-divs (CELL a NIL)  = div' (INT 1) a
-divs (CELL a rest) = foldCell div' a rest
+divs :: ScmFunc
+divs _ NIL = throwE $ strMsg $ "/ : " ++ errNEA
+divs _ (CELL a NIL)  = div' (INT 1) a
+divs _ (CELL a rest) = foldCell div' a rest
 
-mod' :: SExpr -> Scm SExpr
-mod' NIL          = throwE $ strMsg $ "mod : " ++ errNEA
-mod' (CELL _ NIL) = throwE $ strMsg $ "mod : " ++ errNEA
-mod' (CELL _ (CELL (INT 0) _))  = throwE $ strMsg errZERO
-mod' (CELL _ (CELL (REAL 0) _)) = throwE $ strMsg errZERO
-mod' (CELL (INT x) (CELL (INT y) _)) = return (INT (mod x y))
-mod' _ = throwE $ strMsg $ "mod : " ++ errINT
+mod' :: ScmFunc
+mod' _ NIL          = throwE $ strMsg $ "mod : " ++ errNEA
+mod' _ (CELL _ NIL) = throwE $ strMsg $ "mod : " ++ errNEA
+mod' _ (CELL _ (CELL (INT 0) _))  = throwE $ strMsg errZERO
+mod' _ (CELL _ (CELL (REAL 0) _)) = throwE $ strMsg errZERO
+mod' _ (CELL (INT x) (CELL (INT y) _)) = return (INT (mod x y))
+mod' _ _ = throwE $ strMsg $ "mod : " ++ errINT
 
 -- 等値の判定
-eq' :: SExpr -> Scm SExpr
-eq' (CELL x (CELL y _)) =
+eq' :: ScmFunc
+eq' _ (CELL x (CELL y _)) =
   if x == y then return true else return false
-eq' _ = throwE $ strMsg $ "eq : " ++ errNEA
+eq' _ _ = throwE $ strMsg $ "eq : " ++ errNEA
 
-equal' :: SExpr -> Scm SExpr
-equal' (CELL x (CELL y _)) =
+equal' :: ScmFunc
+equal' _ (CELL x (CELL y _)) =
   if iter x y then return true else return false
   where iter (CELL a b) (CELL c d) = iter a c && iter b d
         iter x y = x == y
-equal' _ = throwE $ strMsg $ "equal : " ++ errNEA
+equal' _ _ = throwE $ strMsg $ "equal : " ++ errNEA
 
 -- 数値の比較演算子
 compareNum :: SExpr -> SExpr -> Scm Ordering
@@ -212,12 +214,58 @@ compareNums p (CELL x ys@(CELL y _)) = do
   if p r then compareNums p ys else return false
 compareNums _ _ = throwE $ strMsg "invalid function form"
 
-eqNum, ltNum, gtNum, ltEq, gtEq :: SExpr -> Scm SExpr
-eqNum = compareNums (== EQ)
-ltNum = compareNums (== LT)
-gtNum = compareNums (== GT)
-ltEq  = compareNums (<= EQ)
-gtEq  = compareNums (>= EQ)
+eqNum, ltNum, gtNum, ltEq, gtEq :: ScmFunc
+eqNum _ = compareNums (== EQ)
+ltNum _ = compareNums (== LT)
+gtNum _ = compareNums (== GT)
+ltEq  _ = compareNums (<= EQ)
+gtEq  _ = compareNums (>= EQ)
+
+
+-- apply 
+
+apply' :: ScmFunc
+apply' _ (CELL _ NIL) = throwE $ strMsg $ "apply : " ++ errNEA
+apply' env (CELL func args) = do
+  xs <- iter args
+  apply env func xs
+  where iter (CELL NIL NIL) = return NIL
+        iter (CELL xs@(CELL _ _) NIL) = return xs
+        iter (CELL _ NIL) = throwE $ strMsg errCELL
+        iter (CELL x xs) = do ys <- iter xs
+                              return (CELL x ys)
+apply' _ _ = throwE $ strMsg $ "apply : " ++ errNEA
+
+-- error
+
+error' :: ScmFunc
+error' _ (CELL (STR x) NIL) = throwE $ strMsg $ "ERROR: " ++ x
+error' _ (CELL (STR x) (CELL y _)) = throwE $ strMsg $ "ERROR: " ++ x ++ " " ++ show y
+error' _ (CELL x _) = throwE $ strMsg $ "ERROR: " ++ show x
+error' _ _ = throwE $ strMsg "ERROR: "
+
+-- load
+
+load :: ScmFunc
+load env (CELL (STR filename) _) = do
+  xs <- lift $ readFile filename
+  r <- lift $ iter xs
+  if r then return true else return false
+  where
+    iter :: String -> IO Bool
+    iter xs = 
+      case readSExpr xs of
+        Left  (ParseErr xs' mes) -> if mes == "EOF"
+                                      then return True
+                                      else do print mes
+                                              return False
+        Right (expr, xs') -> do result <- runExceptT $ eval env expr 
+                                case result of
+                                  Left mes -> do print mes
+                                                 return False
+                                  Right _  -> iter xs'
+load _ _ = throwE $ strMsg "invalid load form"
+
 
 --
 -- S 式の表示
@@ -263,7 +311,10 @@ isIdent1 x = isAlphaNum x || isAlpha' x
 isREAL :: Char -> Bool
 isREAL x = elem x ".eE"
 
-quote = SYM "quote"
+quote           = SYM "quote"
+quasiquote      = SYM "quasiquote"
+unquote         = SYM "unquote"
+unquoteSplicing = SYM "unquote-splicing"
 
 isNUM :: String -> Bool
 isNUM (x:_) = isDigit x
@@ -300,6 +351,12 @@ readSExpr (x:xs)
                   [] -> Left noMsg
                   [(y, ys)] -> return (STR y, ys)
         '\'' -> readSExpr xs >>= \(e, ys) -> return (CELL quote (CELL e NIL), ys)
+        '`'  -> readSExpr xs >>= \(e, ys) -> return (CELL quasiquote (CELL e NIL), ys)
+        ','  -> if not (null xs) && head xs == '@'
+                  then readSExpr (tail xs) >>=
+                       \(e, ys) -> return (CELL unquoteSplicing (CELL e NIL), ys)
+                  else readSExpr xs >>=
+                       \(e, ys) -> return (CELL unquote (CELL e NIL), ys)
         _    -> Left $ ParseErr xs ("unexpected token: " ++ show x)
 
 readCell :: Int -> String -> Parser (SExpr, String)
@@ -353,6 +410,8 @@ eval env (CELL func args) = do
   v <- eval env func
   case v of
     SYNT f -> f env args
+    MACR f -> do expr <- apply env f args
+                 eval env expr
     _      -> do vs <- evalArguments env args
                  apply env v vs
 
@@ -379,7 +438,7 @@ makeBindings lenv _ _   = throwE $ strMsg "invalid arguments form"
 apply :: Env -> SExpr -> SExpr -> Scm SExpr
 apply env func actuals =
   case func of
-    PRIM f -> f actuals
+    PRIM f -> f env actuals
     CLOS (CELL parms body) lenv0 -> do
       lenv1 <- makeBindings lenv0 parms actuals
       evalBody (fst env, lenv1) body
@@ -410,6 +469,15 @@ evalDef env (CELL sym@(SYM name) (CELL expr NIL)) = do
   liftIO $ H.insert (fst env) name v
   return sym
 evalDef _ _ = throwE $ strMsg "invalid define form"
+
+-- define-macro
+evalDefM :: Env -> SExpr -> Scm SExpr
+evalDefM env (CELL sym@(SYM name) (CELL expr NIL)) = do
+  v <- eval env expr
+  liftIO $ H.insert (fst env) name (MACR v)
+  return sym
+evalDefM _ _ = throwE $ strMsg "invalid define form"
+
 
 -- if
 evalIf :: Env -> SExpr -> Scm SExpr
@@ -452,6 +520,7 @@ initGEnv = [("true",   true),
             ("lambda", SYNT evalLambda),
             ("if",     SYNT evalIf),
             ("set!",   SYNT evalSet),
+            ("define-macro", SYNT evalDefM),
             ("eq?",    PRIM eq'),
             ("equal?", PRIM equal'),
             ("pair?",  PRIM pair),
@@ -467,7 +536,10 @@ initGEnv = [("true",   true),
             (">=",     PRIM gtEq),
             ("car",    PRIM car),
             ("cdr",    PRIM cdr),
-            ("cons",   PRIM cons)]
+            ("cons",   PRIM cons),
+            ("apply",  PRIM apply'),
+            ("error",  PRIM error'),
+            ("load",   PRIM load)]
 
 -- read-eval-print-loop
 repl :: Env -> String -> IO ()
@@ -476,7 +548,9 @@ repl env xs = do
   hFlush stdout
   case readSExpr xs of
     Left  (ParseErr xs' mes) -> do putStrLn mes
-                                   repl env $ dropWhile (/= '\n') xs'
+                                   if mes == "EOF"
+                                     then return ()
+                                     else repl env $ dropWhile (/= '\n') xs'
     Right (expr, xs') -> do result <- runExceptT $ eval env expr 
                             case result of
                               Left e -> putStrLn (show e)
