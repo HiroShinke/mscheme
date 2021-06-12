@@ -26,8 +26,8 @@ library:
   source-dirs: src
 
 executables:
-  mscheme-exe:
-    main:                Main.hs
+  mscheme:
+    main:                mscheme.hs
     source-dirs:         app
     ghc-options:
     - -threaded
