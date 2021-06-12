@@ -547,10 +547,9 @@ repl env xs = do
   putStr "Scm> "
   hFlush stdout
   case readSExpr xs of
+    Left  (ParseErr xs' "EOF") -> return ()
     Left  (ParseErr xs' mes) -> do putStrLn mes
-                                   if mes == "EOF"
-                                     then return ()
-                                     else repl env $ dropWhile (/= '\n') xs'
+                                   repl env $ dropWhile (/= '\n') xs'
     Right (expr, xs') -> do result <- runExceptT $ eval env expr 
                             case result of
                               Left e -> putStrLn (show e)
