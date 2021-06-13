@@ -242,6 +242,14 @@ apply' _ _ = throwE $ strMsg $ "apply : " ++ errNEA
 list' :: ScmFunc
 list' _  e = return e
 
+-- append
+
+append' :: ScmFunc
+append' _  (CELL (CELL h NIL) (CELL x xs) ) = return (CELL h x)
+append' e  (CELL (CELL h t) (CELL x xs))  = do
+  t' <- append' e (CELL t (CELL x xs))
+  return (CELL h t')
+
 -- error
 
 error' :: ScmFunc
@@ -564,25 +572,21 @@ translatorUnquote n (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
   xs' <- translator n xs
   return (listOf3 (SYM "cons") x xs')
 
-translatorAppend :: SExpr -> SExpr -> Scm SExpr
-translatorAppend x xs = fail "not implemented yet!!"
-  
 translatorUnquoteSplicing :: Int -> SExpr -> Scm SExpr
 translatorUnquoteSplicing 0 (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
     xs' <- translator 0 xs
-    translatorAppend e xs'
+    return (listOf3 (SYM "append") e xs')
     
 translatorUnquoteSplicing n (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
     e' <- translatorSub unquoteSplicing e n (-1)
     xs' <- translator n xs
-    return (CELL (SYM "list") (CELL e' xs'))
+    return (listOf3 (SYM "list") e' xs')
   
 translatorQuasiquote :: Int -> SExpr -> Scm SExpr
 translatorQuasiquote n (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) = do
   e' <- translatorSub quasiquote e n 1
   xs' <- translator n xs
   return (listOf3 (SYM "cons") e' xs')
-
 
 translatorAtom :: Int -> SExpr -> Scm SExpr
 translatorAtom 0 (CELL (SYM "unquote") (CELL e NIL)) = return e
@@ -633,6 +637,7 @@ initGEnv = [("true",   true),
             ("cons",   PRIM cons),
             ("apply",  PRIM apply'),
             ("list",   PRIM list'),
+            ("append", PRIM append'),
             ("error",  PRIM error'),
             ("load",   PRIM load),
             ("unquote", PRIM unquote'),
