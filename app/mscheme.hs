@@ -1,14 +1,20 @@
 --
 -- mscheme.hs : microScheme
---
---              Copyright (C) 2013 Makoto Hiroi
---
+---
+---              Copyright (C) 2013 Makoto Hiroi
+---
 {--
-   オリジナルは、以下で公開されたもので、
-　「お気楽 Haskell プログラミング入門」
-   http://www.nct9.ne.jp/m_hiroi/func/haskell.html
 
-　　これを、Hakellの最新の環境に移植したものです。
+オリジナルは、以下で公開されたもの
+「お気楽 Haskell プログラミング入門」
+ http://www.nct9.ne.jp/m_hiroi/func/haskell.html
+
+以下の点を変更しています。
+
+・例外系はContorl.Monad.Trans.Exceptに移植
+・HashTableは、hashtablesを使用
+・unquote系の処理を、Haskell内部で処理。
+
 --}
 
 import Data.Char
