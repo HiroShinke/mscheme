@@ -307,6 +307,10 @@ instance Show SExpr where
   show (SYNT _)   = "<syntax>"
   show (PRIM _)   = "<primitive>"
   show (CLOS _ _) = "<closure>"
+  show (CELL (SYM "quote") (CELL e NIL)) = "'" ++ (show e)
+  show (CELL (SYM "quasiquote") (CELL e NIL)) = "`" ++ (show e)
+  show (CELL (SYM "unquote") (CELL e NIL)) = "," ++ (show e)
+  show (CELL (SYM "unquote-splicing") (CELL e NIL)) = ",@" ++ (show e)
   show xs         = "(" ++ showCell xs ++ ")"
 
 --
