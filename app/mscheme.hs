@@ -236,6 +236,12 @@ apply' env (CELL func args) = do
                               return (CELL x ys)
 apply' _ _ = throwE $ strMsg $ "apply : " ++ errNEA
 
+
+-- list
+
+list' :: ScmFunc
+list' _  e = return e
+
 -- error
 
 error' :: ScmFunc
@@ -512,6 +518,14 @@ evalSet _ _ = throwE (strMsg "invalid set! form")
 
 --- unquotes
 
+-- helpers
+listOf2 :: SExpr -> SExpr -> SExpr
+listOf2 x y = (CELL x (CELL y NIL))
+
+listOf3 :: SExpr -> SExpr -> SExpr -> SExpr
+listOf3 x y z = (CELL x (CELL y (CELL z NIL)))
+
+
 unquote' :: ScmFunc
 unquote' _ _ = throwE $ strMsg "unquote appeared outside quasiquote"
 
@@ -519,13 +533,13 @@ unquoteSplicing' :: ScmFunc
 unquoteSplicing' _ _ = throwE $ strMsg "unquote-splicing appeared outside quasiquote"
 
 quasiquote' :: ScmFunc
-quasiquote' _ e = translator 0 e
+quasiquote' _ (CELL e nil) = translator 0 e
 
 translator :: Int -> SExpr -> Scm SExpr
 translator n ls@(CELL (CELL _ _) _) = translatorList n ls
 translator n ls@(CELL _ _) = translatorAtom n ls
-translator n x = return (CELL quote (CELL x NIL))
-
+translator n x = return (listOf2 quote x)
+  
 translatorList :: Int -> SExpr -> Scm SExpr
 translatorList n ls@(CELL (CELL (SYM "unquote") _) _) = translatorUnquote n ls
 translatorList n ls@(CELL (CELL (SYM "unquote-splicing") _) _) = translatorUnquoteSplicing n ls
@@ -533,21 +547,22 @@ translatorList n ls@(CELL (CELL (SYM "quasiquote") _) _) = translatorQuasiquote 
 translatorList n (CELL x xs) = do
   x' <- translator n x
   xs' <- translator n xs
-  return (CELL x' xs')
+  return (listOf3 (SYM "cons") x' xs')
 translatorList _ _ = throwE $ strMsg "shouldn't come here"
 
 translatorSub :: SExpr -> SExpr -> Int -> Int -> Scm SExpr
-translatorSub sym ls n succ = do
-  ls' <- translator (n + succ) ls
-  return (CELL sym ls')
-                                     
+translatorSub sym e n succ = do
+  e' <- translator (n + succ) e
+  return (listOf3 (SYM "list") (listOf2 quote sym) e')
+
+    
 translatorUnquote :: Int -> SExpr -> Scm SExpr
 translatorUnquote n (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
   x <- if n == 0
        then return e
        else translatorSub unquote e n (-1)
   xs' <- translator n xs
-  return (CELL x xs')
+  return (listOf3 (SYM "cons") x xs')
 
 translatorAppend :: SExpr -> SExpr -> Scm SExpr
 translatorAppend x xs = fail "not implemented yet!!"
@@ -560,32 +575,34 @@ translatorUnquoteSplicing 0 (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) x
 translatorUnquoteSplicing n (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
     e' <- translatorSub unquoteSplicing e n (-1)
     xs' <- translator n xs
-    return (CELL e' xs')
+    return (CELL (SYM "list") (CELL e' xs'))
   
 translatorQuasiquote :: Int -> SExpr -> Scm SExpr
 translatorQuasiquote n (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) = do
   e' <- translatorSub quasiquote e n 1
   xs' <- translator n xs
-  return (CELL e' xs')
+  return (listOf3 (SYM "cons") e' xs')
 
 
 translatorAtom :: Int -> SExpr -> Scm SExpr
 translatorAtom 0 (CELL (SYM "unquote") (CELL e NIL)) = return e
-translatorAtom 1 (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) =
-  return (CELL quote (CELL (CELL unquote (CELL e NIL)) NIL))
-translatorAtom n (CELL (SYM "unquote") (CELL e NIL)) = translatorSub unquote e n (-1)
   
-translatorAtom 0 (CELL (SYM "unquote-splicing") _) = throwE $ strMsg "invalid unquote-splicing form"
+translatorAtom 1 (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) =
+  return (listOf3 (SYM "cons") (listOf2 quote unquote) e)
+translatorAtom n (CELL (SYM "unquote") (CELL e NIL)) =
+  translatorSub unquote e n (-1)
+translatorAtom 0 (CELL (SYM "unquote-splicing") _) =
+  throwE $ strMsg "invalid unquote-splicing form"
 translatorAtom 1 (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) =
-  return (CELL quote (CELL (CELL unquoteSplicing (CELL e NIL)) NIL))
+  return (listOf3 (SYM "cons") (listOf2 quote unquoteSplicing) e)
 translatorAtom n (CELL (SYM "unquote-splicing") (CELL e NIL)) =
   translatorSub unquoteSplicing e n (-1)
 translatorAtom n (CELL (SYM "quasiquote") (CELL e NIL)) =
   translatorSub quasiquote e n (-1)
 translatorAtom n (CELL x xs) = do
   xs' <- translator n xs
-  return (CELL (CELL quote (CELL x NIL)) xs')
-  
+  return (listOf3 (SYM "cons") (listOf2 quote x) xs')
+
 --
 -- 大域変数の初期化
 --
@@ -615,11 +632,12 @@ initGEnv = [("true",   true),
             ("cdr",    PRIM cdr),
             ("cons",   PRIM cons),
             ("apply",  PRIM apply'),
+            ("list",   PRIM list'),
             ("error",  PRIM error'),
             ("load",   PRIM load),
             ("unquote", PRIM unquote'),
             ("unquote-splicing", PRIM unquoteSplicing'),            
-            ("quasiquote", MACR (PRIM quasiquote'))]
+            ("quasiquote",MACR (PRIM quasiquote') )]
 
 -- read-eval-print-loop
 repl :: Env -> String -> IO ()
