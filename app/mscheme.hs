@@ -578,13 +578,13 @@ translatorUnquote n (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
 
 translatorUnquoteSplicing :: Int -> SExpr -> Scm SExpr
 translatorUnquoteSplicing 0 (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
-    xs' <- translator 0 xs
-    return (listOf3 (SYM "append") e xs')
+  xs' <- translator 0 xs
+  return (listOf3 (SYM "append") e xs')
     
 translatorUnquoteSplicing n (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
-    e' <- translatorSub unquoteSplicing e n (-1)
-    xs' <- translator n xs
-    return (listOf3 (SYM "list") e' xs')
+  e' <- translatorSub unquoteSplicing e n (-1)
+  xs' <- translator n xs
+  return (listOf3 (SYM "list") e' xs')
   
 translatorQuasiquote :: Int -> SExpr -> Scm SExpr
 translatorQuasiquote n (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) = do
