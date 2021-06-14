@@ -555,76 +555,76 @@ unquoteSplicing' :: ScmFunc
 unquoteSplicing' _ _ = throwE $ strMsg "unquote-splicing appeared outside quasiquote"
 
 quasiquote' :: ScmFunc
-quasiquote' env (CELL e nil) = translator env 0 e
+quasiquote' env (CELL e nil) = translator 0 env e
 
-translator :: Env -> Int -> SExpr -> Scm SExpr
-translator env n ls@(CELL (CELL _ _) _) = translatorList env n ls
-translator env n ls@(CELL _ _) = translatorAtom env n ls
-translator env n x = return x
+translator :: Int -> ScmFunc
+translator n env ls@(CELL (CELL _ _) _) = translatorList n env ls
+translator n env ls@(CELL _ _) = translatorAtom n env ls
+translator n env x = return x
   
-translatorList :: Env -> Int -> SExpr -> Scm SExpr
-translatorList env n ls@(CELL (CELL (SYM "unquote") _) _) = translatorUnquote env n ls
-translatorList env n ls@(CELL (CELL (SYM "unquote-splicing") _) _) = translatorUnquoteSplicing env n ls
-translatorList env n ls@(CELL (CELL (SYM "quasiquote") _) _) = translatorQuasiquote env n ls
-translatorList env n (CELL x xs) = do
-  x' <- translator env n x
-  xs' <- translator env n xs
+translatorList :: Int -> ScmFunc
+translatorList n env ls@(CELL (CELL (SYM "unquote") _) _) = translatorUnquote n env ls
+translatorList n env ls@(CELL (CELL (SYM "unquote-splicing") _) _) = translatorUnquoteSplicing n env ls
+translatorList n env ls@(CELL (CELL (SYM "quasiquote") _) _) = translatorQuasiquote n env ls
+translatorList n env (CELL x xs) = do
+  x' <- translator n env x
+  xs' <- translator n env xs
   return (CELL x' xs')
 translatorList _ _ _ = throwE $ strMsg "shouldn't come here"
 
 translatorSub :: Env -> SExpr -> SExpr -> Int -> Int -> Scm SExpr
 translatorSub env sym e n succ = do
-  e' <- translator env (n + succ) e
+  e' <- translator (n + succ) env e
   return (CELL sym e')
 
     
-translatorUnquote :: Env -> Int -> SExpr -> Scm SExpr
-translatorUnquote env 0 (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
+translatorUnquote :: Int -> ScmFunc
+translatorUnquote 0 env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
   e' <- eval env e
-  xs' <- translator env n xs
+  xs' <- translator 0 env xs
   return (CELL e' xs')
 
-translatorUnquote env n (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
+translatorUnquote n env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
   e' <- translatorSub env unquote e n (-1)
-  xs' <- translator env n xs
+  xs' <- translator n env xs
   return (CELL e' xs')
 
-translatorUnquoteSplicing :: Env -> Int -> SExpr -> Scm SExpr
-translatorUnquoteSplicing env 0 (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
+translatorUnquoteSplicing :: Int -> ScmFunc
+translatorUnquoteSplicing 0 env (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
   e' <- eval env e
-  xs' <- translator env 0 xs
+  xs' <- translator 0 env xs
   append' env (CELL e' (CELL xs' NIL))
     
-translatorUnquoteSplicing env n (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
+translatorUnquoteSplicing n env (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) = do
   e' <- translatorSub env unquoteSplicing e n (-1)
-  xs' <- translator env n xs
+  xs' <- translator n env xs
   return (CELL e' xs')
  
-translatorQuasiquote :: Env -> Int -> SExpr -> Scm SExpr
-translatorQuasiquote env n (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) = do
+translatorQuasiquote :: Int -> ScmFunc
+translatorQuasiquote n env (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) = do
   e' <- translatorSub env quasiquote e n 1
-  xs' <- translator env n xs
+  xs' <- translator n env xs
   return (CELL e' xs')
 
-translatorAtom :: Env -> Int -> SExpr -> Scm SExpr
-translatorAtom env 0 (CELL (SYM "unquote") (CELL e NIL)) = eval env e
+translatorAtom :: Int -> ScmFunc
+translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) = eval env e
   
-translatorAtom env 1 (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
+translatorAtom 1 env (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
   e' <- eval env e
   return (CELL unquote (CELL e' NIL))
-translatorAtom env n (CELL (SYM "unquote") (CELL e NIL)) =
+translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) =
   translatorSub env unquote e n (-1)
-translatorAtom env 0 (CELL (SYM "unquote-splicing") _) =
+translatorAtom 0 env (CELL (SYM "unquote-splicing") _) =
   throwE $ strMsg "invalid unquote-splicing form"
-translatorAtom env 1 (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
+translatorAtom 1 env (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
   e' <- eval env e
   return (CELL unquoteSplicing (CELL e' NIL))
-translatorAtom env  n (CELL (SYM "unquote-splicing") (CELL e NIL)) =
+translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) =
   translatorSub env unquoteSplicing e n (-1)
-translatorAtom env n (CELL (SYM "quasiquote") (CELL e NIL)) =
+translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) =
   translatorSub env quasiquote e n (-1)
-translatorAtom env n (CELL x xs) = do
-  xs' <- translator env n xs
+translatorAtom n env (CELL x xs) = do
+  xs' <- translator n env xs
   return (CELL x xs')
 
 --
