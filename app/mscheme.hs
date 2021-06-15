@@ -575,9 +575,8 @@ translatorList _ _ _ = throwE $ strMsg "shouldn't come here"
 translatorSub :: Env -> SExpr -> SExpr -> Int -> Int -> Scm SExpr
 translatorSub env sym e n succ = do
   e' <- translator (n + succ) env e
-  return (CELL sym e')
+  return (CELL sym (CELL e' NIL))
 
-    
 translatorUnquote :: Int -> ScmFunc
 translatorUnquote 0 env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) = do
   e' <- eval env e
@@ -612,7 +611,7 @@ translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) = eval env e
 translatorAtom 1 env (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
   e' <- eval env e
   return (CELL unquote (CELL e' NIL))
-translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) =
+translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) = 
   translatorSub env unquote e n (-1)
 translatorAtom 0 env (CELL (SYM "unquote-splicing") _) =
   throwE $ strMsg "invalid unquote-splicing form"
@@ -622,10 +621,10 @@ translatorAtom 1 env (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-sp
 translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) =
   translatorSub env unquoteSplicing e n (-1)
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) =
-  translatorSub env quasiquote e n (-1)
-translatorAtom n env (CELL x xs) = do
+  translatorSub env quasiquote e n 1
+translatorAtom n env (CELL e xs) = do
   xs' <- translator n env xs
-  return (CELL x xs')
+  return (CELL e xs')
 
 --
 -- 大域変数の初期化
