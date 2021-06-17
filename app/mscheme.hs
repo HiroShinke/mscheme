@@ -609,15 +609,15 @@ translatorAtom :: Int -> ScmFunc
 translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) = eval env e
   
 translatorAtom 1 env (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
-  e' <- eval env e
-  return (CELL unquote (CELL e' NIL))
+   e' <- eval env e
+   return (CELL unquote e')
 translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) = 
   translatorSub env unquote e n (-1)
 translatorAtom 0 env (CELL (SYM "unquote-splicing") _) =
   throwE $ strMsg "invalid unquote-splicing form"
 translatorAtom 1 env (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) = do
   e' <- eval env e
-  return (CELL unquoteSplicing (CELL e' NIL))
+  return (CELL unquoteSplicing e' )
 translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) =
   translatorSub env unquoteSplicing e n (-1)
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) =
