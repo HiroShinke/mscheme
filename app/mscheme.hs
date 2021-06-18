@@ -421,7 +421,7 @@ liftIO = lift
 --
 -- S 式の評価
 --
-eval :: Env -> SExpr -> Scm SExpr
+eval :: ScmFunc
 eval env NIL        = return NIL
 eval env v@(INT _)  = return v
 eval env v@(REAL _) = return v
@@ -444,7 +444,7 @@ eval env (CELL func args) = do
                  apply env v vs
 
 -- 引数の評価
-evalArguments :: Env -> SExpr -> Scm SExpr
+evalArguments :: ScmFunc
 evalArguments env NIL = return NIL
 evalArguments env (CELL expr rest) = do
   v  <- eval env expr
@@ -473,7 +473,7 @@ apply env func actuals =
     _ -> throwE $ strMsg $ "Not Function: " ++ show func
 
 -- 本体の評価
-evalBody :: Env -> SExpr -> Scm SExpr
+evalBody :: ScmFunc
 evalBody env (CELL expr NIL) = eval env expr
 evalBody env (CELL expr rest) = do
   eval env expr
@@ -485,13 +485,13 @@ evalBody _ _ = throwE $ strMsg "invalid body form"
 --
 
 -- quote
-evalQuote :: Env -> SExpr -> Scm SExpr
+evalQuote :: ScmFunc
 evalQuote env (CELL expr _) = return expr
 evalQuote _ _ = throwE $ strMsg "invalid quote form"
 
 
 -- define
-evalDef :: Env -> SExpr -> Scm SExpr
+evalDef :: ScmFunc
 evalDef env (CELL sym@(SYM name) (CELL expr NIL)) = do
   v <- eval env expr
   liftIO $ H.insert (fst env) name v
@@ -499,7 +499,7 @@ evalDef env (CELL sym@(SYM name) (CELL expr NIL)) = do
 evalDef _ _ = throwE $ strMsg "invalid define form"
 
 -- define-macro
-evalDefM :: Env -> SExpr -> Scm SExpr
+evalDefM :: ScmFunc
 evalDefM env (CELL sym@(SYM name) (CELL expr NIL)) = do
   v <- eval env expr
   liftIO $ H.insert (fst env) name (MACR v)
@@ -508,7 +508,7 @@ evalDefM _ _ = throwE $ strMsg "invalid define form"
 
 
 -- if
-evalIf :: Env -> SExpr -> Scm SExpr
+evalIf :: ScmFunc
 evalIf env (CELL pred (CELL thenForm rest)) = do
   v <- eval env pred
   if v /= false
@@ -519,11 +519,11 @@ evalIf env (CELL pred (CELL thenForm rest)) = do
 evalIf _ _ = throwE $ strMsg $ "if : " ++ errNEA
 
 -- lambda
-evalLambda :: Env -> SExpr -> Scm SExpr
+evalLambda :: ScmFunc
 evalLambda env expr = return (CLOS expr (snd env))
 
 -- set!
-evalSet :: Env -> SExpr -> Scm SExpr
+evalSet :: ScmFunc
 evalSet env (CELL (SYM name) (CELL expr _)) = do
   v <- eval env expr
   a <- liftIO $ lookupLEnv name (snd env)
