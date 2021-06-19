@@ -38,6 +38,18 @@ executables:
     - mtl
     - transformers
 
+  mscheme2:
+    main:                mscheme2.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hashtables
+    - mtl
+    - transformers
+
 tests:
   mscheme-test:
     main:                Spec.hs
