@@ -42,6 +42,7 @@ data SExpr = INT  !Integer
            | PRIM ScmFunc
            | SYNT ScmFunc
            | CLOS SExpr LEnv
+           | CONT (Scm SExpr -> Scm SExpr)
            | MACR SExpr
 
 -- 等値の定義
@@ -477,6 +478,9 @@ apply :: Env -> SExpr -> SExpr -> Cont (Scm SExpr) (Scm SExpr)
 apply env func actuals c =
   case func of
     PRIM f -> f env actuals c
+    CONT c1 -> case actuals of
+                 (CELL x _) -> c1 $ return x
+                 _ -> throwE $ strMsg errNEA                 
     CLOS (CELL parms body) lenv0 -> do
       lenv1 <- makeBindings lenv0 parms actuals
       evalBody (fst env, lenv1) body c
@@ -550,6 +554,24 @@ evalSet env (CELL (SYM name) (CELL expr _)) c =
                   c $ return v
 evalSet _ _ _ = throwE (strMsg "invalid set! form")
 
+-- callcc
+callcc :: ScmFunc
+callcc env (CELL func _) c = 
+  apply env func (CELL (CONT c) NIL) c
+callcc _ _ _ = throwE $ strMsg $ "call/cc " ++ errNEA
+
+-- S 式の表示
+display :: ScmFunc
+display _ (CELL x _) c = do case x of
+                              STR s -> lift $ putStr s
+                              _     -> lift $ putStr $ show x
+                            c $ return NIL
+display _ _ _ = throwE $ strMsg $ "display : " ++ errNEA
+
+-- 改行
+newline :: ScmFunc
+newline _ _ c = do lift $ putStrLn ""
+                   c $ return NIL
 
 --- unquotes
 
@@ -688,6 +710,8 @@ initGEnv = [("true",   true),
             ("append", PRIM append'),
             ("error",  PRIM error'),
             ("load",   PRIM load),
+            ("callcc", PRIM callcc),
+            ("display", PRIM display),
             ("unquote", PRIM unquote'),
             ("unquote-splicing", PRIM unquoteSplicing'),            
             ("quasiquote", SYNT quasiquote')]
