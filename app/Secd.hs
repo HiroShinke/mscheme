@@ -14,8 +14,8 @@ trace s x = unsafePerformIO ( do
 data Value = Num Int
            | VBool Bool
            | Closure [Code] Env
-           | Prim ([Value]->Value)
-           | List [Value]
+           | Prim (Value->Value)
+           | Cell Value Value
            | Str String
            | Sym String
            | Nil
@@ -26,7 +26,7 @@ instance Show Value where
   show (VBool n) = show n
   show (Closure cs e) =
     "Colsure " ++ (show cs) ++ " " ++ (show e)
-  show (List xs) = "List " ++ (show xs)
+  show (Cell x xs) = "List " ++ (show x) ++ " " ++ (show xs)
   show (Str s) = "Str " ++ (show s)
   show (Sym s) = "Sym " ++ (show s)
   show Nil = "Nil"
@@ -37,7 +37,7 @@ instance Eq Value where
   Sym x == Sym y = x == y
   VBool x == VBool y = x == y
   Nil   == Nil   = True
-  List xs == List ys = xs == ys
+  Cell x xs == Cell y ys = x == y && xs == ys
   _ == _             = False
   
 type Env   = [[Value]]
@@ -80,11 +80,11 @@ exec g s e (Ld (i,j):c) d = exec g (v:s) e c d where v = getLVar e i j
 exec g s e (Ldc v:c) d = exec g (v:s) e c d
 exec g s e (Ldg sym:c) d = exec g (v:s) e c d where v = getGVar g sym
 exec g s e (Ldf code: c) d = exec g (Closure code e:s) e c d
-exec g s e (Args n: c) d = exec g (List vs:s') e c d where vs = take n s
-                                                           s' = drop n s
-exec g (Closure code e':List vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
+exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(take n s)
+                                                      s' = drop n s
+exec g (Closure code e':vs:s) e (App:c) d = exec g [] (cellToList vs:e') code (Cont3 s e c:d)
 exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
-exec g (Prim func:List vs:s) e (App:c) d = exec g (func vs:s) e c d
+exec g (Prim func:v:s) e (App:c) d = exec g (func v:s) e c d
 exec g (VBool b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)
                                        else exec g s e cf (Cont1 c:d)
 exec g s e (Join:[]) (Cont1 c:d) = exec g s e c d
@@ -98,3 +98,11 @@ dumpString s e c d =  "s=" ++ (show s) ++ "," ++
                       "e=" ++ (show e) ++ "," ++ 
                       "c=" ++ (show c) ++ "," ++                         
                       "d=" ++ (show d)
+
+listToCell :: [Value] -> Value
+listToCell (x:xs) = Cell x (listToCell xs)
+listToCell []     = Nil
+
+cellToList :: Value -> [Value]
+cellToList (Cell x xs) = x : (cellToList xs)
+cellToList  Nil        = []

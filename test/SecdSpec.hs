@@ -74,14 +74,15 @@ spec = do
       let e = []
       let c = [Args 3,Stop]
       let d = []
-      exec g s e c d `shouldBe` (List [Num 1,Num 2,Num 3])
+      exec g s e c d `shouldBe` (listToCell [Num 1,Num 2,Num 3])
+
+  let addFunc (Cell (Num x) (Cell (Num y) _)) = Num (x+y)
 
   describe "App" $ do
     describe "Primitive" $
       it "case 1" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let g = []
-      let s = [Prim addFunc, List [Num 3, Num 5], Str "xxx"]
+      let s = [Prim addFunc, listToCell [Num 3, Num 5], Str "xxx"]
       let e = []
       let c = [App,Stop]
       let d = []
@@ -89,9 +90,8 @@ spec = do
 
     describe "Primitive2" $
       it "case 2" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let g = []
-      let s = [List [Num 3, Num 5], Str "xxx"]
+      let s = [listToCell [Num 3, Num 5], Str "xxx"]
       let e = []
       let c = [Ldc (Prim addFunc),App,Stop]
       let d = []
@@ -99,7 +99,6 @@ spec = do
 
     describe "Primitive3" $
       it "case 3" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let g = []
       let s = [Str "xxx"]
       let e = []
@@ -109,7 +108,6 @@ spec = do
 
     describe "Primitive4" $
       it "case 4" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let g = [("add", Prim addFunc)]
       let s = [Str "xxx"]
       let e = []
@@ -119,12 +117,11 @@ spec = do
 
     describe "Closure1" $
       it "case 1" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let closEnv = [[]]
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (Prim addFunc), App, Rtn ]
       let clos = Closure closCodes closEnv
       let g = []
-      let s = [clos, List [Num 3, Num 5], Str "xxx"]
+      let s = [clos, listToCell [Num 3, Num 5], Str "xxx"]
       let e = []
       let c = [App,Stop]
       let d = []
@@ -132,7 +129,6 @@ spec = do
 
     describe "Closure2" $
       it "case 2" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
       let g = [("add", Prim addFunc)]
       let s = []
@@ -143,7 +139,6 @@ spec = do
 
     describe "UserFunction" $
       it "case 1" $ do
-      let addFunc (Num x:Num y:_) = Num (x+y)
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
       let g = [("add", Prim addFunc)]
       let s = []
