@@ -40,7 +40,7 @@ instance Eq Value where
   Cell x xs == Cell y ys = x == y && xs == ys
   _ == _             = False
   
-type Env   = [[Value]]
+type Env   = [Value] -- stack of frames. a frame must be list of symbol
 type Stack = [Value]
 type Dump  = [Cont]
 type GEnv  = [(String,Value)]
@@ -69,7 +69,12 @@ globalEnv :: [(String,Value)]
 globalEnv = []
 
 getLVar :: Env -> Int -> Int -> Value
-getLVar e i j = e !! i !! j
+getLVar e i j = let frm = e !! i
+                in  getItem frm j
+  where getItem (Cell x xs) 0 = x
+        getItem (Cell x xs) n = getItem xs (n-1)
+        getItem  Nil n        = error "can't come here"
+
 getGVar :: [(String,Value)] -> String -> Value
 getGVar g key = case lookup key g of
                   Just v -> v
@@ -82,7 +87,7 @@ exec g s e (Ldg sym:c) d = exec g (v:s) e c d where v = getGVar g sym
 exec g s e (Ldf code: c) d = exec g (Closure code e:s) e c d
 exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(take n s)
                                                       s' = drop n s
-exec g (Closure code e':vs:s) e (App:c) d = exec g [] (cellToList vs:e') code (Cont3 s e c:d)
+exec g (Closure code e':vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
 exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
 exec g (Prim func:v:s) e (App:c) d = exec g (func v:s) e c d
 exec g (VBool b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)

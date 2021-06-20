@@ -17,7 +17,7 @@ spec = do
     it "case 1" $ do
     let g = []    
     let s = []
-    let e = [[Str "a",Str "b"]]
+    let e = [listToCell [Str "a",Str "b"]]
     let c = [Ld (0,1),Stop]
     let d = []
     exec g s e c d `shouldBe` (Str "b")
@@ -51,20 +51,6 @@ spec = do
       let c = [Ldg "b",Stop]
       let d = []
       exec g s e c d `shouldBe` (Str "b")
-
-
-  describe "Ldf" $ do
-    describe "xxxx" $
-      it "case 1" $ do
-      let g = []
-      let s = []
-      let e = [[Num 1, Num 2],[Num 3,Num 4]]
-      let c = [Ldf [Ld (0,1),Rtn],Dump]
-      let d = []
-      exec g s e c d `shouldBe` (Str $ 
-                                  "s=[Colsure [Ld (0,1),Rtn] [[Num 1,Num 2],[Num 3,Num 4]]]," ++
-                                  "e=[[Num 1,Num 2],[Num 3,Num 4]],c=[],d=[]"
-                                )
 
   describe "Args" $ do
     describe "xxxx" $
@@ -117,7 +103,7 @@ spec = do
 
     describe "Closure1" $
       it "case 1" $ do
-      let closEnv = [[]]
+      let closEnv = [Nil]
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (Prim addFunc), App, Rtn ]
       let clos = Closure closCodes closEnv
       let g = []

@@ -88,7 +88,7 @@ comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs =
   in
     comp env pred (S.Sel tc ec : cs)
 comp env (CELL (SYM "lambda") (CELL args body)) cs = 
-  let code = compBody (cellToEnv args:env) body [S.Rtn]
+  let code = compBody (sExpToValue args:env) body [S.Rtn]
   in S.Ldf code : cs
 comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (S.Def n : cs)
@@ -113,9 +113,9 @@ findPos n xs = findFrame xs 0
                          Just j -> return (i,j)
                          Nothing -> findFrame fs (i + 1)
     findFrame [] _  =   fail "not found"
-    findCol :: [S.Value] -> Int -> Maybe Int
-    findCol ((S.Sym m):xs) j = if n == m then return j else findCol xs (j+1)
-    findCol [] _ = fail "not found"
+    findCol :: S.Value -> Int -> Maybe Int
+    findCol (S.Cell (S.Sym m) xs) j = if n == m then return j else findCol xs (j+1)
+    findCol S.Nil _ = fail "not found"
 
 sExpToValue :: SExpr -> S.Value
 sExpToValue NIL        = S.Nil
