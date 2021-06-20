@@ -94,3 +94,13 @@ spec = do
                               S.Def "a",
                               S.Stop ]
       
+  describe "quote" $
+    it "lambda" $ do 
+    compile (lN[ SYM "quote", SYM "a"] ) `shouldBe` [ S.Ldc (S.Sym "a"), S.Stop ]
+
+  describe "quote" $
+    it "lambda" $ do 
+    compile (lN[ SYM "quote", lN[ SYM "a", SYM "b"] ] ) `shouldBe`
+      [ S.Ldc (S.listToCell [ S.Sym "a",S.Sym "b" ]),S.Stop ]
+      
+

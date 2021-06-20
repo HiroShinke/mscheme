@@ -118,7 +118,12 @@ findPos n xs = findFrame xs 0
     findCol [] _ = fail "not found"
 
 sExpToValue :: SExpr -> S.Value
-sExpToValue = error "not implemented yet"
+sExpToValue NIL        = S.Nil
+sExpToValue (INT n)    = S.Num (fromIntegral n)
+sExpToValue (STR n)    = S.Str n
+sExpToValue (BOOL n)   = S.VBool n
+sExpToValue (SYM name) = S.Sym name
+sExpToValue (CELL x xy) = S.Cell (sExpToValue x) (sExpToValue xy)
 
 cellToEnv :: SExpr -> [S.Value]
 cellToEnv (CELL (SYM n) rest) = S.Sym n : cellToEnv rest
