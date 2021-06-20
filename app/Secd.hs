@@ -62,7 +62,7 @@ data Code = Ld (Int,Int)
           | Def String
           | Stop
           | Dump
-  deriving Show
+  deriving (Show,Eq)
 
 
 globalEnv :: [(String,Value)]
