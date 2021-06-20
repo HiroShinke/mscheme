@@ -2,7 +2,6 @@
 -- MSchemec.hs : microScheme compiler
 ---
 
-module MSchemec where
 
 import Data.Char
 import Data.IORef
