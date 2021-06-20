@@ -17,6 +17,7 @@ data SExpr = INT  !Integer
            | REAL !Double
            | SYM  String
            | STR  String
+           | BOOL Bool
            | CELL SExpr SExpr
            | NIL
            | PRIM ScmFunc
@@ -30,6 +31,7 @@ instance Eq SExpr where
   REAL x == REAL y = x == y
   SYM x  == SYM y  = x == y
   STR x  == STR y  = x == y
+  BOOL x  == BOOL y  = x == y
   NIL    == NIL    = True
   _      == _      = False
 
@@ -68,6 +70,7 @@ comp :: S.Env -> SExpr -> [S.Code] -> [S.Code]
 comp env NIL        cs = S.Ldc S.Nil : cs
 comp env (INT n)    cs = S.Ldc (S.Num (fromIntegral n)) : cs
 comp env (STR n)    cs = S.Ldc (S.Str n) : cs
+comp env (BOOL n)   cs = S.Ldc (S.VBool n) : cs
 comp env (SYM name) cs = let pos = findPos name env
                          in
                            case pos of

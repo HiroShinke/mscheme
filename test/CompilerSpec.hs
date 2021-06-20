@@ -66,14 +66,31 @@ spec = do
   describe "test case" $
     it "lambda apply" $ do 
     compile ( lN[ lmd3 , INT 3, INT 5] ) `shouldBe` [ S.Ldc (S.Num 3),
-                                                     S.Ldc (S.Num 5),
-                                                     S.Args 2,
-                                                     S.Ldf [ S.Ld (0,0), S.Ld (0,1), S.Args 2,
-                                                             S.Ldg "+",
-                                                             S.App,
-                                                             S.Rtn ],
-                                                     S.App,
-                                                     S.Stop ]
-  
+                                                      S.Ldc (S.Num 5),
+                                                      S.Args 2,
+                                                      S.Ldf [ S.Ld (0,0), S.Ld (0,1), S.Args 2,
+                                                              S.Ldg "+",
+                                                              S.App,
+                                                              S.Rtn ],
+                                                      S.App,
+                                                      S.Stop ]
+  describe "if" $
+    it "lambda apply" $ do
+    let sexp = lN[ SYM "if", BOOL True, INT 1, INT 2]
+    compile sexp `shouldBe` [ S.Ldc (S.VBool True),
+                              S.Sel [ S.Ldc (S.Num 1), S.Join ] [ S.Ldc (S.Num 2), S.Join ],
+                              S.Stop ]
+
+  describe "define" $
+    it "simple int value" $ do
+    let sexp = lN[ SYM "define", SYM "a", INT 2]
+    compile sexp `shouldBe` [ S.Ldc (S.Num 2), S.Def "a", S.Stop ]
 
 
+  describe "define" $
+    it "lambda" $ do
+    let sexp = lN[ SYM "define", SYM "a", lmd ]
+    compile sexp `shouldBe` [ S.Ldf [ S.Ld (0,0), S.Rtn ],
+                              S.Def "a",
+                              S.Stop ]
+      
