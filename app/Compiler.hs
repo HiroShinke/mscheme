@@ -6,6 +6,7 @@ import Data.IORef
 import qualified Secd as S
 import Control.Monad.Trans.Except
 import System.IO
+import Error
 
 import qualified Data.HashTable.IO as H
 type HashTable k v = H.CuckooHashTable k v
@@ -35,22 +36,53 @@ instance Eq SExpr where
   NIL    == NIL    = True
   _      == _      = False
 
--- パーサエラーの定義
-data ParseErr = ParseErr String String deriving Show
+--
+-- S 式の表示
+--
+showCell :: SExpr -> String
+showCell (CELL a d) =
+  show a ++ case d of
+              NIL      -> ""
+              PRIM _   -> "<primitive>"
+              CLOS _ _ -> "<closure>"
+              SYNT _   -> "<syntax>"
+              INT x    -> " . " ++ show x
+              REAL x   -> " . " ++ show x
+              SYM x    -> " . " ++ x
+              STR x    -> " . " ++ show x
+              _        -> " " ++ showCell d
+showCell xs = show xs
 
-class Error a where
-    noMsg :: a
-    strMsg :: String -> a
+instance Show SExpr where
+  show (INT x)    = show x
+  show (REAL x)   = show x
+  show (SYM x)    = x
+  show (STR x)    = show x
+  show NIL        = "()"
+  show (SYNT _)   = "<syntax>"
+  show (PRIM _)   = "<primitive>"
+  show (CLOS _ _) = "<closure>"
+  show (CELL (SYM "quote") (CELL e NIL)) = "'" ++ (show e)
+  show (CELL (SYM "quasiquote") (CELL e NIL)) = "`" ++ (show e)
+  show (CELL (SYM "unquote") (CELL e NIL)) = "," ++ (show e)
+  show (CELL (SYM "unquote-splicing") (CELL e NIL)) = ",@" ++ (show e)
+  show xs         = "(" ++ showCell xs ++ ")"
 
-instance Error ParseErr where
-  noMsg    = ParseErr "" ""
-  strMsg s = ParseErr "" s
 
--- パーサの定義
-type Parser a = Either ParseErr a
+quote           = SYM "quote"
+quasiquote      = SYM "quasiquote"
+unquote         = SYM "unquote"
+unquoteSplicing = SYM "unquote-splicing"
+
+-- Scmエラーの定義
+data ScmError = ScmError String String deriving Show
+
+instance Error ScmError where
+  noMsg    = ScmError "" ""
+  strMsg s = ScmError  "" s
 
 -- 評価器の定義
-type Scm a = ExceptT ParseErr IO a
+type Scm a = ExceptT ScmError IO a
 
 -- ローカル環境の定義
 type LEnv = [(String, IORef SExpr)]
