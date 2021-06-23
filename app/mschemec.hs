@@ -92,25 +92,24 @@ load _ _ = throwE $ strMsg "invalid load form"
 
 
 -- read-eval-print-loop
-repl :: Env -> String -> IO ()
-repl env xs = do
+repl :: GEnv -> String -> IO ()
+repl g xs = do
   putStr "Scm> "
   hFlush stdout
   case readSExpr xs of
     Left  (ParseErr xs' "EOF") -> return ()
     Left  (ParseErr xs' mes) -> do putStrLn mes
-                                   repl env $ dropWhile (/= '\n') xs'
+                                   repl g $ dropWhile (/= '\n') xs'
     Right (expr, xs') -> do let code = compile expr
-                            hs <- H.new
-                            v <- runExceptT $ S.exec hs [] [] code [] 
+                            v <- runExceptT $ S.exec g [] [] code [] 
                             putStrLn (show v)
-                            repl env xs'
+                            repl g xs'
 
 main :: IO ()
 main = do
   xs <- hGetContents stdin
   ht <- H.fromList initGEnv
-  repl (ht, []) xs
+  repl ht xs
 
 
 
