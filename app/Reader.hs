@@ -7,6 +7,7 @@ import Data.Char
 import Evaluator
 import Compiler
 import Error
+import SExpr
 
 -- パーサエラーの定義
 data ParseErr = ParseErr String String deriving Show

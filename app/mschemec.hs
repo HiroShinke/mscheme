@@ -13,6 +13,7 @@ import Evaluator
 import Reader
 import Compiler
 import Error
+import SExpr
 import Primitives
 
 --
@@ -100,7 +101,8 @@ repl env xs = do
     Left  (ParseErr xs' mes) -> do putStrLn mes
                                    repl env $ dropWhile (/= '\n') xs'
     Right (expr, xs') -> do let code = compile expr
-                            let v = S.exec [] [] [] code [] 
+                            hs <- H.new
+                            v <- runExceptT $ S.exec hs [] [] code [] 
                             putStrLn (show v)
                             repl env xs'
 

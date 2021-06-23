@@ -8,6 +8,7 @@ import Control.Monad.IO.Class
 
 import Error
 import Compiler
+import SExpr
 
 -- 真偽値
 true  = SYM "true"

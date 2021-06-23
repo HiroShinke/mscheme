@@ -10,6 +10,7 @@ import qualified Secd as S
 import Compiler
 import Primitives
 import Error
+import SExpr
 
 import qualified Data.HashTable.IO as H
 
