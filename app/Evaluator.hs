@@ -154,6 +154,7 @@ evalSet env (CELL (SYM name) (CELL expr _)) = do
                   return v
 evalSet _ _ = throwE (strMsg "invalid set! form")
 
+
 -- append
 
 append' :: ScmFunc
@@ -180,36 +181,15 @@ apply' env (CELL func args) = do
                               return (CELL x ys)
 apply' _ _ = throwE $ strMsg $ "apply : " ++ errNEA
 
--- load
-
-load :: ScmFunc
-load env (CELL (STR filename) _) = do
-  xs <- lift $ readFile filename
-  r <- lift $ iter xs
-  if r then return true else return false
-  where
-    iter :: String -> IO Bool
-    iter xs = 
-      case readSExpr xs of
-        Left  (ParseErr xs' mes) -> if mes == "EOF"
-                                      then return True
-                                      else do print mes
-                                              return False
-        Right (expr, xs') -> do result <- runExceptT $ eval env expr 
-                                case result of
-                                  Left mes -> do print mes
-                                                 return False
-                                  Right _  -> iter xs'
-load _ _ = throwE $ strMsg "invalid load form"
 
 --- unquotes
 
 -- helpers
-listOf2 :: SExpr -> SExpr -> SExpr
-listOf2 x y = (CELL x (CELL y NIL))
+--listOf2 :: SExpr -> SExpr -> SExpr
+--listOf2 x y = (CELL x (CELL y NIL))
 
-listOf3 :: SExpr -> SExpr -> SExpr -> SExpr
-listOf3 x y z = (CELL x (CELL y (CELL z NIL)))
+--listOf3 :: SExpr -> SExpr -> SExpr -> SExpr
+--listOf3 x y z = (CELL x (CELL y (CELL z NIL)))
 
 
 unquote' :: ScmFunc
