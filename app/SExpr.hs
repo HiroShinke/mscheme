@@ -31,6 +31,7 @@ instance Eq SExpr where
   STR x  == STR y  = x == y
   BOOL x  == BOOL y  = x == y
   NIL    == NIL    = True
+  CELL x xs == CELL y ys = x == y && xs == ys
   _      == _      = False
 
 --
@@ -67,7 +68,7 @@ instance Show SExpr where
 
 
 -- Scmエラーの定義
-data ScmError = ScmError String String deriving Show
+data ScmError = ScmError String String deriving (Show, Eq)
 
 instance Error ScmError where
   noMsg    = ScmError "" ""

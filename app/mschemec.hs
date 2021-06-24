@@ -101,6 +101,8 @@ repl g xs = do
     Left  (ParseErr xs' mes) -> do putStrLn mes
                                    repl g $ dropWhile (/= '\n') xs'
     Right (expr, xs') -> do let code = compile expr
+                            putStrLn "Code:"
+                            putStrLn (show code)
                             v <- runExceptT $ S.exec g [] [] code [] 
                             putStrLn (show v)
                             repl g xs'

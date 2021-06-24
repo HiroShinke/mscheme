@@ -2,174 +2,186 @@
 module SecdSpec where
 
 import Secd
+import SExpr
 import qualified System.IO.Silently as Silently
 import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec.Expectations
+import Control.Monad.Trans.Except
 
+import qualified Data.HashTable.IO as H
+type HashTable k v = H.CuckooHashTable k v
+
+
+
+shouldBeT m v = do
+  v' <- runExceptT m
+  v' `shouldBe` (Right v)
 
 spec :: Spec
 spec = do
   
   describe "Stop" $
-    it "case 1" $ 
-    exec [] (Num 1:[]) [] (Stop:[]) [] `shouldBe` (Num 1)
+    it "case 1" $ do
+    g <- H.new
+    exec g (INT 1:[]) [] (Stop:[]) [] `shouldBeT` (INT 1)
 
   describe "Ld" $
     it "case 1" $ do
-    let g = []    
+    g <- H.new
     let s = []
-    let e = [listToCell [Str "a",Str "b"]]
+    let e = [listToCell [STR "a",STR "b"]]
     let c = [Ld (0,1),Stop]
     let d = []
-    exec g s e c d `shouldBe` (Str "b")
+    exec g s e c d `shouldBeT` STR "b"
 
   describe "Ldc" $ do
     describe "String Literal" $
       it "case 1" $ do
-      let g = []    
+      g <- H.new
       let s = []
       let e = []
-      let c = [Ldc (Str "b"),Stop]
+      let c = [Ldc (STR "b"),Stop]
       let d = []
-      exec g s e c d `shouldBe` (Str "b")
+      exec g s e c d `shouldBeT` (STR "b")
   
     describe "Number Literal" $
       it "case 2" $ do
-      let g = []    
+      g <- H.new
       let s = []
       let e = []
-      let c = [Ldc (Num 10),Stop]
+      let c = [Ldc (INT 10),Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 10)
+      exec g s e c d `shouldBeT` (INT 10)
 
 
   describe "Ldg" $ do
     describe "String Literal" $
       it "case 1" $ do
-      let g = [("a",Num 1),("b",Str "b")]
+      g <- H.fromList [("a",INT 1),("b",STR "b")]
       let s = []
       let e = []
       let c = [Ldg "b",Stop]
       let d = []
-      exec g s e c d `shouldBe` (Str "b")
+      exec g s e c d `shouldBeT` (STR "b")
 
   describe "Args" $ do
     describe "xxxx" $
       it "case 1" $ do
-      let g = []
-      let s = [Num 1, Num 2,Num 3,Num 4]
+      g <- H.new
+      let s = [INT 1, INT 2,INT 3,INT 4]
       let e = []
       let c = [Args 3,Stop]
       let d = []
-      exec g s e c d `shouldBe` (listToCell [Num 1,Num 2,Num 3])
+      exec g s e c d `shouldBeT` (listToCell [INT 1,INT 2,INT 3])
 
-  let addFunc (Cell (Num x) (Cell (Num y) _)) = Num (x+y)
+  let addFunc _ (CELL (INT x) (CELL (INT y) _)) = return $ INT (x+y)
 
   describe "App" $ do
-    describe "Primitive" $
+    describe "PRIMitive" $
       it "case 1" $ do
-      let g = []
-      let s = [Prim addFunc, listToCell [Num 3, Num 5], Str "xxx"]
+      g <- H.new
+      let s = [PRIM addFunc, listToCell [INT 3, INT 5], STR "xxx"]
       let e = []
       let c = [App,Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
-    describe "Primitive2" $
+    describe "PRIMitive2" $
       it "case 2" $ do
-      let g = []
-      let s = [listToCell [Num 3, Num 5], Str "xxx"]
+      g <- H.new
+      let s = [listToCell [INT 3, INT 5], STR "xxx"]
       let e = []
-      let c = [Ldc (Prim addFunc),App,Stop]
+      let c = [Ldc (PRIM addFunc),App,Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
-    describe "Primitive3" $
+    describe "PRIMitive3" $
       it "case 3" $ do
-      let g = []
-      let s = [Str "xxx"]
+      g <- H.new
+      let s = [STR "xxx"]
       let e = []
-      let c = [Ldc (Num 3), Ldc (Num 5), Args 2, Ldc (Prim addFunc),App,Stop]
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldc (PRIM addFunc),App,Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
-    describe "Primitive4" $
+    describe "PRIMitive4" $
       it "case 4" $ do
-      let g = [("add", Prim addFunc)]
-      let s = [Str "xxx"]
+      g <- H.fromList [("add", PRIM addFunc)]
+      let s = [STR "xxx"]
       let e = []
-      let c = [Ldc (Num 3), Ldc (Num 5), Args 2, Ldg "add",App,Stop]
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldg "add",App,Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
     describe "Closure1" $
       it "case 1" $ do
-      let closEnv = [Nil]
-      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (Prim addFunc), App, Rtn ]
-      let clos = Closure closCodes closEnv
-      let g = []
-      let s = [clos, listToCell [Num 3, Num 5], Str "xxx"]
+      let closEnv = [NIL]
+      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (PRIM addFunc), App, Rtn ]
+      let clos = CLOS' closCodes closEnv
+      g <- H.new
+      let s = [clos, listToCell [INT 3, INT 5], STR "xxx"]
       let e = []
       let c = [App,Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
     describe "Closure2" $
       it "case 2" $ do
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
-      let g = [("add", Prim addFunc)]
+      g <- H.fromList [("add", PRIM addFunc)]
       let s = []
       let e = []
-      let c = [Ldc (Num 3), Ldc (Num 5), Args 2, Ldf closCodes, App,Stop]
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldf closCodes, App,Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
     describe "UserFunction" $
       it "case 1" $ do
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
-      let g = [("add", Prim addFunc)]
+      g <- H.fromList [("add", PRIM addFunc)]
       let s = []
       let e = []
       let c = [Ldf closCodes, Def "userAdd",
-               Ldc (Num 3), Ldc (Num 5), Args 2, Ldg "userAdd", App, Stop ]
+               Ldc (INT 3), Ldc (INT 5), Args 2, Ldg "userAdd", App, Stop ]
       let d = []
-      exec g s e c d `shouldBe` (Num 8)
+      exec g s e c d `shouldBeT` (INT 8)
 
 
   describe "Pop" $ 
     it "case 1" $ do
-    let g = []
-    let s = [Num 1, Num 2, Num 3]
+    g <- H.new
+    let s = [INT 1, INT 2, INT 3]
     let e = []
     let c = [Pop,Stop]
     let d = []
-    exec g s e c d `shouldBe` (Num 2)
+    exec g s e c d `shouldBeT` (INT 2)
     
   describe "Def" $ 
     it "case 1" $ do
-    let g = []
+    g <- H.new
     let s = []
     let e = []
-    let c = [Ldc (Num 2),Def "a", Ldg "a", Stop]
+    let c = [Ldc (INT 2),Def "a", Ldg "a", Stop]
     let d = []
-    exec g s e c d `shouldBe` (Num 2)
+    exec g s e c d `shouldBeT` (INT 2)
 
   describe "Sel&Join" $ do
     describe "then-block" $
       it "case 1" $ do
-      let g = []
+      g <- H.new
       let s = []
       let e = []
-      let c = [Ldc (VBool True), Sel [Ldc (Num 1), Join] [Ldc (Num 2), Join], Stop]
+      let c = [Ldc (BOOL True), Sel [Ldc (INT 1), Join] [Ldc (INT 2), Join], Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 1)
+      exec g s e c d `shouldBeT` (INT 1)
 
     describe "else-block" $
       it "case 2" $ do
-      let g = []
+      g <- H.new
       let s = []
       let e = []
-      let c = [Ldc (VBool False), Sel [Ldc (Num 1), Join] [Ldc (Num 2), Join], Stop]
+      let c = [Ldc (BOOL False), Sel [Ldc (INT 1), Join] [Ldc (INT 2), Join], Stop]
       let d = []
-      exec g s e c d `shouldBe` (Num 2)
+      exec g s e c d `shouldBeT` (INT 2)
 
     
