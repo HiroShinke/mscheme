@@ -6,18 +6,10 @@ import System.IO.Unsafe
 import SExpr
 import qualified Data.HashTable.IO as H
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 import Error
 
-
-lift :: (Monad m) => m a -> ExceptT e m a
-lift = ExceptT . liftM Right 
-                     
--- | Promote a function to a monad.
-liftM   :: (Monad m) => (a1 -> r) -> m a1 -> m r
-liftM f ma = do a <- ma
-                return (f a)
-
-liftIO = lift                
 
 trace :: Show a => String -> a -> a 
 trace s x = unsafePerformIO ( do
@@ -51,8 +43,8 @@ exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(take n s)
                                                       s' = drop n s
 exec g (CLOS' code e':vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
 exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
-exec g (PRIM func:v:s) e (App:c) d = do
-  v' <- func (g,[]) v
+exec g (PRIM' func:v:s) e (App:c) d = do
+  v' <- func g v
   exec g (v':s) e c d
 exec g (BOOL b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)
                                        else exec g s e cf (Cont1 c:d)

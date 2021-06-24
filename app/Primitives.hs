@@ -9,35 +9,26 @@ import Control.Monad.IO.Class
 import Error
 import Compiler
 import SExpr
-
--- 真偽値
-true  = SYM "true"
-false = SYM "false"
-
--- Primitive の定義
-errNUM  = "Illegal argument, Number required"
-errINT  = "Illegal argument, Integer required"
-errNEA  = "Not enough arguments"
-errCELL = "Illegal argument, List required"
-errZERO = "Divide by zero"
+import Reader
+import Secd
 
 
 -- リスト操作
-car :: ScmFunc
+car :: SecdFunc
 car _ NIL = throwE $ strMsg $ "car : " ++ errNEA
 car _ (CELL (CELL a _) _) = return a
 car _ _                   = throwE $ strMsg $ "car : " ++ errCELL
 
-cdr :: ScmFunc
+cdr :: SecdFunc
 cdr _ NIL = throwE $ strMsg $ "cdr : " ++ errNEA
 cdr _ (CELL (CELL _ d) _) = return d
 cdr _ _                   = throwE $ strMsg $ "cdr : " ++ errCELL
 
-cons :: ScmFunc
+cons :: SecdFunc
 cons _ (CELL a (CELL b _)) = return (CELL a b)
 cons _ _                   = throwE $ strMsg $ "cons : " ++ errNEA
 
-pair :: ScmFunc
+pair :: SecdFunc
 pair _ NIL                 = throwE $ strMsg $ "pair? : " ++ errNEA
 pair _ (CELL (CELL _ _) _) = return true
 pair _ _                   = return false
@@ -57,7 +48,7 @@ add (REAL x) (INT y)  = return (REAL (x + fromIntegral y))
 add (REAL x) (REAL y) = return (REAL (x + y))
 add _        _        = throwE $ strMsg $ "+ : " ++ errNUM
 
-adds :: ScmFunc
+adds :: SecdFunc
 adds _ xs = foldCell add (INT 0) xs
 
 sub :: SExpr -> SExpr -> Scm SExpr
@@ -67,7 +58,7 @@ sub (REAL x) (INT y)  = return (REAL (x - fromIntegral y))
 sub (REAL x) (REAL y) = return (REAL (x - y))
 sub _        _        = throwE $ strMsg $ "- : " ++ errNUM
 
-subs :: ScmFunc
+subs :: SecdFunc
 subs _ NIL = throwE $ strMsg $ "- : " ++ errNEA
 subs _ (CELL (INT a) NIL)  = return (INT (-a))
 subs _ (CELL (REAL a) NIL) = return (REAL (-a))
@@ -80,7 +71,7 @@ mul (REAL x) (INT y)  = return (REAL (x * fromIntegral y))
 mul (REAL x) (REAL y) = return (REAL (x * y))
 mul _        _        = throwE $ strMsg $ "- : " ++ errNUM
 
-muls :: ScmFunc
+muls :: SecdFunc
 muls _ xs = foldCell mul (INT 1) xs
 
 div' :: SExpr -> SExpr -> Scm SExpr
@@ -92,12 +83,12 @@ div' (REAL x) (INT y)  = return (REAL (x / fromIntegral y))
 div' (REAL x) (REAL y) = return (REAL (x / y))
 div' _        _        = throwE $ strMsg $ "- : " ++ errNUM
 
-divs :: ScmFunc
+divs :: SecdFunc
 divs _ NIL = throwE $ strMsg $ "/ : " ++ errNEA
 divs _ (CELL a NIL)  = div' (INT 1) a
 divs _ (CELL a rest) = foldCell div' a rest
 
-mod' :: ScmFunc
+mod' :: SecdFunc
 mod' _ NIL          = throwE $ strMsg $ "mod : " ++ errNEA
 mod' _ (CELL _ NIL) = throwE $ strMsg $ "mod : " ++ errNEA
 mod' _ (CELL _ (CELL (INT 0) _))  = throwE $ strMsg errZERO
@@ -106,12 +97,12 @@ mod' _ (CELL (INT x) (CELL (INT y) _)) = return (INT (mod x y))
 mod' _ _ = throwE $ strMsg $ "mod : " ++ errINT
 
 -- 等値の判定
-eq' :: ScmFunc
+eq' :: SecdFunc
 eq' _ (CELL x (CELL y _)) =
   if x == y then return true else return false
 eq' _ _ = throwE $ strMsg $ "eq : " ++ errNEA
 
-equal' :: ScmFunc
+equal' :: SecdFunc
 equal' _ (CELL x (CELL y _)) =
   if iter x y then return true else return false
   where iter (CELL a b) (CELL c d) = iter a c && iter b d
@@ -137,7 +128,7 @@ compareNums p (CELL x ys@(CELL y _)) = do
   if p r then compareNums p ys else return false
 compareNums _ _ = throwE $ strMsg "invalid function form"
 
-eqNum, ltNum, gtNum, ltEq, gtEq :: ScmFunc
+eqNum, ltNum, gtNum, ltEq, gtEq :: SecdFunc
 eqNum _ = compareNums (== EQ)
 ltNum _ = compareNums (== LT)
 gtNum _ = compareNums (== GT)
@@ -146,26 +137,47 @@ gtEq  _ = compareNums (>= EQ)
 
 -- list
 
-list' :: ScmFunc
+list' :: SecdFunc
 list' _  e = return e
-
--- append
-
-append' :: ScmFunc
-append' e  (CELL (CELL h t) (CELL xs NIL))  = do
-  t' <- append' e (CELL t (CELL xs NIL))
-  return (CELL h t')
-append' e  (CELL NIL (CELL xs NIL))  = return xs
-append' e  (CELL x xs)  = do
-  liftIO $ putStrLn $ "append'3 x=" ++ (show x)
-  liftIO $ putStrLn $ "appped'3 xs=" ++ (show xs)  
-  throwE $ strMsg $ "append for invlid list!: " ++ (show x)
 
 -- error
 
-error' :: ScmFunc
+error' :: SecdFunc
 error' _ (CELL (STR x) NIL) = throwE $ strMsg $ "ERROR: " ++ x
 error' _ (CELL (STR x) (CELL y _)) = throwE $ strMsg $ "ERROR: " ++ x ++ " " ++ show y
 error' _ (CELL x _) = throwE $ strMsg $ "ERROR: " ++ show x
 error' _ _ = throwE $ strMsg "ERROR: "
 
+-- append
+
+append' :: SecdFunc
+append' e  (CELL (CELL h t) (CELL xs NIL))  = do
+  t' <- append' e (CELL t (CELL xs NIL))
+  return (CELL h t')
+append' _  (CELL NIL (CELL xs NIL))  = return xs
+append' _  (CELL x xs)  = do
+  liftIO $ putStrLn $ "append'3 x=" ++ (show x)
+  liftIO $ putStrLn $ "appped'3 xs=" ++ (show xs)  
+  throwE $ strMsg $ "append for invlid list!: " ++ (show x)
+
+-- load 
+
+load :: SecdFunc
+load g (CELL (STR filename) _) = do
+  xs <- lift $ readFile filename
+  r <- lift $ iter xs
+  if r then return true else return false
+  where
+    iter :: String -> IO Bool
+    iter xs = 
+      case readSExpr xs of
+        Left  (ParseErr xs' "EOF") -> return True
+        Left  (ParseErr xs' mes) -> do putStrLn mes
+                                       return False
+        Right (expr, xs') -> do let code = compile expr
+                                putStrLn "Code:"
+                                putStrLn (show code)
+                                v <- runExceptT $ exec g [] [] code [] 
+                                putStrLn (show v)
+                                iter xs'
+load _ _ = throwE $ strMsg "invalid load form"

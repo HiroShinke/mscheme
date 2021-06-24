@@ -8,7 +8,7 @@ import Control.Monad.Trans.Except
 import System.IO
 import qualified Secd as S
 import Compiler
-import Primitives
+-- import Primitives
 import Reader
 import Error
 import SExpr
@@ -164,6 +164,17 @@ evalSet env (CELL (SYM name) (CELL expr _)) = do
                   return v
 evalSet _ _ = throwE (strMsg "invalid set! form")
 
+-- append
+
+append' :: ScmFunc
+append' e  (CELL (CELL h t) (CELL xs NIL))  = do
+  t' <- append' e (CELL t (CELL xs NIL))
+  return (CELL h t')
+append' e  (CELL NIL (CELL xs NIL))  = return xs
+append' e  (CELL x xs)  = do
+  liftIO $ putStrLn $ "append'3 x=" ++ (show x)
+  liftIO $ putStrLn $ "appped'3 xs=" ++ (show xs)  
+  throwE $ strMsg $ "append for invlid list!: " ++ (show x)
 
 --- apply 
 

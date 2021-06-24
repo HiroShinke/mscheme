@@ -19,9 +19,10 @@ data SExpr = INT  !Integer
            | NIL
            | PRIM ScmFunc
            | SYNT ScmFunc
-           | CLOS' [Code] Frame
            | CLOS SExpr LEnv
            | MACR SExpr
+           | PRIM' SecdFunc       --- VM built-in function
+           | CLOS' [Code] Frame   --- compiled closure
 
 -- 等値の定義
 instance Eq SExpr where
@@ -74,9 +75,9 @@ instance Error ScmError where
   noMsg    = ScmError "" ""
   strMsg s = ScmError  "" s
 
-type Scm a = ExceptT ScmError IO a
-type ScmFunc  = Env -> SExpr -> Scm SExpr
-type PrimFunc = SExpr -> Scm SExpr
+type Scm a    = ExceptT ScmError IO a
+type ScmFunc  = Env  -> SExpr -> Scm SExpr
+type SecdFunc = GEnv -> SExpr -> Scm SExpr
 
 quote           = SYM "quote"
 quasiquote      = SYM "quasiquote"
@@ -114,4 +115,16 @@ data Code = Ld (Int,Int)
           | Stop
           | Dump
   deriving (Show,Eq)
+
+
+-- 真偽値
+true  = SYM "true"
+false = SYM "false"
+
+-- Primitive の定義
+errNUM  = "Illegal argument, Number required"
+errINT  = "Illegal argument, Integer required"
+errNEA  = "Not enough arguments"
+errCELL = "Illegal argument, List required"
+errZERO = "Divide by zero"
 
