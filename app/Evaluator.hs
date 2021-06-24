@@ -5,6 +5,8 @@ module Evaluator where
 import Data.IORef
 
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 import System.IO
 import qualified Secd as S
 import Compiler
@@ -32,17 +34,6 @@ updateLEnv s v env =
     Nothing -> pushLEnv s v env
     Just a  -> do writeIORef a v
                   return env
-
-
-lift :: (Monad m) => m a -> ExceptT e m a
-lift = ExceptT . liftM Right 
-                     
--- | Promote a function to a monad.
-liftM   :: (Monad m) => (a1 -> r) -> m a1 -> m r
-liftM f ma = do a <- ma
-                return (f a)
-
-liftIO = lift                
 
 --
 -- S 式の評価
