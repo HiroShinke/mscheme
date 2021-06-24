@@ -7,7 +7,6 @@ import qualified Secd as S
 import Control.Monad.Trans.Except
 import SExpr
 import System.IO
-import SExpr
 import Error
 
 --- compile

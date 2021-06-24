@@ -4,7 +4,6 @@ module Reader where
 
 import Data.Char
 
-import Evaluator
 import Compiler
 import Error
 import SExpr

@@ -9,6 +9,7 @@ import System.IO
 import qualified Secd as S
 import Compiler
 import Primitives
+import Reader
 import Error
 import SExpr
 
@@ -163,6 +164,42 @@ evalSet env (CELL (SYM name) (CELL expr _)) = do
                   return v
 evalSet _ _ = throwE (strMsg "invalid set! form")
 
+
+--- apply 
+
+apply' :: ScmFunc
+apply' _ (CELL _ NIL) = throwE $ strMsg $ "apply : " ++ errNEA
+apply' env (CELL func args) = do
+  xs <- iter args
+  apply env func xs
+  where iter (CELL NIL NIL) = return NIL
+        iter (CELL xs@(CELL _ _) NIL) = return xs
+        iter (CELL _ NIL) = throwE $ strMsg errCELL
+        iter (CELL x xs) = do ys <- iter xs
+                              return (CELL x ys)
+apply' _ _ = throwE $ strMsg $ "apply : " ++ errNEA
+
+-- load
+
+load :: ScmFunc
+load env (CELL (STR filename) _) = do
+  xs <- lift $ readFile filename
+  r <- lift $ iter xs
+  if r then return true else return false
+  where
+    iter :: String -> IO Bool
+    iter xs = 
+      case readSExpr xs of
+        Left  (ParseErr xs' mes) -> if mes == "EOF"
+                                      then return True
+                                      else do print mes
+                                              return False
+        Right (expr, xs') -> do result <- runExceptT $ eval env expr 
+                                case result of
+                                  Left mes -> do print mes
+                                                 return False
+                                  Right _  -> iter xs'
+load _ _ = throwE $ strMsg "invalid load form"
 
 --- unquotes
 

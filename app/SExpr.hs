@@ -75,8 +75,8 @@ instance Error ScmError where
   strMsg s = ScmError  "" s
 
 type Scm a = ExceptT ScmError IO a
-type ScmFunc = Env -> SExpr -> Scm SExpr
-
+type ScmFunc  = Env -> SExpr -> Scm SExpr
+type PrimFunc = SExpr -> Scm SExpr
 
 quote           = SYM "quote"
 quasiquote      = SYM "quasiquote"
