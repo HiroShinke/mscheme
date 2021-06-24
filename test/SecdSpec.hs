@@ -76,36 +76,36 @@ spec = do
   let addFunc _ (CELL (INT x) (CELL (INT y) _)) = return $ INT (x+y)
 
   describe "App" $ do
-    describe "PRIMitive" $
+    describe "PRIM'itive" $
       it "case 1" $ do
       g <- H.new
-      let s = [PRIM addFunc, listToCell [INT 3, INT 5], STR "xxx"]
+      let s = [PRIM' addFunc, listToCell [INT 3, INT 5], STR "xxx"]
       let e = []
       let c = [App,Stop]
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
-    describe "PRIMitive2" $
+    describe "PRIM'itive2" $
       it "case 2" $ do
       g <- H.new
       let s = [listToCell [INT 3, INT 5], STR "xxx"]
       let e = []
-      let c = [Ldc (PRIM addFunc),App,Stop]
+      let c = [Ldc (PRIM' addFunc),App,Stop]
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
-    describe "PRIMitive3" $
+    describe "PRIM'itive3" $
       it "case 3" $ do
       g <- H.new
       let s = [STR "xxx"]
       let e = []
-      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldc (PRIM addFunc),App,Stop]
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldc (PRIM' addFunc),App,Stop]
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
-    describe "PRIMitive4" $
+    describe "PRIM'itive4" $
       it "case 4" $ do
-      g <- H.fromList [("add", PRIM addFunc)]
+      g <- H.fromList [("add", PRIM' addFunc)]
       let s = [STR "xxx"]
       let e = []
       let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldg "add",App,Stop]
@@ -115,7 +115,7 @@ spec = do
     describe "Closure1" $
       it "case 1" $ do
       let closEnv = [NIL]
-      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (PRIM addFunc), App, Rtn ]
+      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (PRIM' addFunc), App, Rtn ]
       let clos = CLOS' closCodes closEnv
       g <- H.new
       let s = [clos, listToCell [INT 3, INT 5], STR "xxx"]
@@ -127,7 +127,7 @@ spec = do
     describe "Closure2" $
       it "case 2" $ do
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
-      g <- H.fromList [("add", PRIM addFunc)]
+      g <- H.fromList [("add", PRIM' addFunc)]
       let s = []
       let e = []
       let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldf closCodes, App,Stop]
@@ -137,7 +137,7 @@ spec = do
     describe "UserFunction" $
       it "case 1" $ do
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
-      g <- H.fromList [("add", PRIM addFunc)]
+      g <- H.fromList [("add", PRIM' addFunc)]
       let s = []
       let e = []
       let c = [Ldf closCodes, Def "userAdd",

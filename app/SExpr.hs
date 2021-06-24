@@ -121,10 +121,4 @@ data Code = Ld (Int,Int)
 true  = SYM "true"
 false = SYM "false"
 
--- Primitive の定義
-errNUM  = "Illegal argument, Number required"
-errINT  = "Illegal argument, Integer required"
-errNEA  = "Not enough arguments"
-errCELL = "Illegal argument, List required"
-errZERO = "Divide by zero"
 

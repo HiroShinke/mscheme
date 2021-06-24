@@ -12,7 +12,6 @@ import SExpr
 import Reader
 import Secd
 
-
 -- リスト操作
 car :: SecdFunc
 car _ NIL = throwE $ strMsg $ "car : " ++ errNEA
