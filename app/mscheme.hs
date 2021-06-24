@@ -21,53 +21,13 @@ import Data.Char
 import Data.IORef
 
 import Control.Monad.Trans.Except
-import System.IO
-
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 import qualified Data.HashTable.IO as H
-type HashTable k v = H.CuckooHashTable k v
-
-type ScmFunc = Env -> SExpr -> Scm SExpr
-
--- S 式の定義
-data SExpr = INT  !Integer
-           | REAL !Double
-           | SYM  String
-           | STR  String
-           | CELL SExpr SExpr
-           | NIL
-           | PRIM ScmFunc
-           | SYNT ScmFunc
-           | CLOS SExpr LEnv
-           | MACR SExpr
-
--- 等値の定義
-instance Eq SExpr where
-  INT x  == INT y  = x == y
-  REAL x == REAL y = x == y
-  SYM x  == SYM y  = x == y
-  STR x  == STR y  = x == y
-  NIL    == NIL    = True
-  _      == _      = False
-
--- パーサエラーの定義
-data ParseErr = ParseErr String String deriving Show
-
-class Error a where
-    noMsg :: a
-    strMsg :: String -> a
-
-instance Error ParseErr where
-  noMsg    = ParseErr "" ""
-  strMsg s = ParseErr "" s
-
--- パーサの定義
-type Parser a = Either ParseErr a
-
--- 評価器の定義
-type Scm a = ExceptT ParseErr IO a
-
--- ローカル環境の定義
-type LEnv = [(String, IORef SExpr)]
+import System.IO
+import SExpr
+import Error
+import Reader
 
 pushLEnv :: String -> SExpr -> LEnv -> IO LEnv
 pushLEnv s v env = do
@@ -88,22 +48,6 @@ updateLEnv s v env =
     Just a  -> do writeIORef a v
                   return env
 
--- グローバルな環境
-type GEnv = HashTable String SExpr
-
--- 両方の環境を保持する
-type Env = (GEnv, LEnv)
-
--- 真偽値
-true  = SYM "true"
-false = SYM "false"
-
--- Primitive の定義
-errNUM  = "Illegal argument, Number required"
-errINT  = "Illegal argument, Integer required"
-errNEA  = "Not enough arguments"
-errCELL = "Illegal argument, List required"
-errZERO = "Divide by zero"
 
 -- リスト操作
 car :: ScmFunc
@@ -290,133 +234,6 @@ load env (CELL (STR filename) _) = do
                                   Right _  -> iter xs'
 load _ _ = throwE $ strMsg "invalid load form"
 
-
---
--- S 式の表示
---
-showCell :: SExpr -> String
-showCell (CELL a d) =
-  show a ++ case d of
-              NIL      -> ""
-              PRIM _   -> "<primitive>"
-              CLOS _ _ -> "<closure>"
-              SYNT _   -> "<syntax>"
-              INT x    -> " . " ++ show x
-              REAL x   -> " . " ++ show x
-              SYM x    -> " . " ++ x
-              STR x    -> " . " ++ show x
-              _        -> " " ++ showCell d
-showCell xs = show xs
-
-instance Show SExpr where
-  show (INT x)    = show x
-  show (REAL x)   = show x
-  show (SYM x)    = x
-  show (STR x)    = show x
-  show NIL        = "()"
-  show (SYNT _)   = "<syntax>"
-  show (PRIM _)   = "<primitive>"
-  show (CLOS _ _) = "<closure>"
-  show (CELL (SYM "quote") (CELL e NIL)) = "'" ++ (show e)
-  show (CELL (SYM "quasiquote") (CELL e NIL)) = "`" ++ (show e)
-  show (CELL (SYM "unquote") (CELL e NIL)) = "," ++ (show e)
-  show (CELL (SYM "unquote-splicing") (CELL e NIL)) = ",@" ++ (show e)
-  show xs         = "(" ++ showCell xs ++ ")"
-
---
--- S 式の読み込み
---
-
-isAlpha' :: Char -> Bool
-isAlpha' x = elem x "!$%&*+-/:<=>?@^_~"
-
-isIdent0 :: Char -> Bool
-isIdent0 x = isAlpha x || isAlpha' x
-
-isIdent1 :: Char -> Bool
-isIdent1 x = isAlphaNum x || isAlpha' x
-
-isREAL :: Char -> Bool
-isREAL x = elem x ".eE"
-
-quote           = SYM "quote"
-quasiquote      = SYM "quasiquote"
-unquote         = SYM "unquote"
-unquoteSplicing = SYM "unquote-splicing"
-
-isNUM :: String -> Bool
-isNUM (x:_) = isDigit x
-isNUM _     = False
-
-getNumber :: String -> Parser (SExpr, String)
-getNumber xs =
-  let (s, ys) = span isDigit xs
-  in if not (null ys) && isREAL (head ys)
-     then case reads xs of
-            [] -> Left noMsg  -- ありえないエラー
-            [(y', ys')] -> return (REAL y', ys')
-     else return (INT (read s), ys)
-
-readSExpr :: String -> Parser (SExpr, String)
-readSExpr [] = Left $ strMsg "EOF"
-readSExpr (x:xs) 
-  | isSpace x  = readSExpr xs
-  | isDigit x  = getNumber (x:xs)
-  | isIdent0 x = if x == '+' && isNUM xs
-                 then getNumber xs
-                 else if x == '-' && isNUM xs
-                 then do (y, ys) <- getNumber xs
-                         case y of
-                           INT x  -> return (INT  (- x), ys)
-                           REAL x -> return (REAL (- x), ys)
-                 else let (name, ys) = span isIdent1 (x:xs)
-                      in return (SYM name, ys)
-  | otherwise  =
-      case x of
-        '('  -> readCell 0 xs
-        ';'  -> readSExpr $ dropWhile (/= '\n') xs
-        '"'  -> case reads (x:xs) of
-                  [] -> Left noMsg
-                  [(y, ys)] -> return (STR y, ys)
-        '\'' -> readSExpr xs >>= \(e, ys) -> return (CELL quote (CELL e NIL), ys)
-        '`'  -> readSExpr xs >>= \(e, ys) -> return (CELL quasiquote (CELL e NIL), ys)
-        ','  -> if not (null xs) && head xs == '@'
-                  then readSExpr (tail xs) >>=
-                       \(e, ys) -> return (CELL unquoteSplicing (CELL e NIL), ys)
-                  else readSExpr xs >>=
-                       \(e, ys) -> return (CELL unquote (CELL e NIL), ys)
-        _    -> Left $ ParseErr xs ("unexpected token: " ++ show x)
-
-readCell :: Int -> String -> Parser (SExpr, String)
-readCell _ [] = Left $ strMsg "EOF"
-readCell n (x:xs)
-  | isSpace x = readCell n xs
-  | otherwise =
-      case x of
-        ')' -> return (NIL, xs)
-        '.' -> if n == 0
-               then Left $ ParseErr xs "invalid dotted list"
-               else do (e, ys) <- readSExpr xs
-                       case dropWhile isSpace ys of
-                         ')':zs -> return (e, zs)
-                         _      -> Left $ ParseErr xs "invalid dotted list"
-        '(' -> do (a, ys) <- readCell 0 xs
-                  (d, zs) <- readCell 1 ys
-                  return (CELL a d, zs)
-        _   -> do (a, ys) <- readSExpr (x:xs)
-                  (d, zs) <- readCell 1 ys
-                  return (CELL a d, zs)
-
-
-lift :: (Monad m) => m a -> ExceptT e m a
-lift = ExceptT . liftM Right 
-                     
--- | Promote a function to a monad.
-liftM   :: (Monad m) => (a1 -> r) -> m a1 -> m r
-liftM f ma = do a <- ma
-                return (f a)
-
-liftIO = lift                
 
 --
 -- S 式の評価
