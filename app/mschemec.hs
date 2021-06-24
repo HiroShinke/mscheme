@@ -13,7 +13,7 @@ import Reader
 import Compiler
 import Error
 import SExpr
-import Primitives
+import SecdFuncs
 
 --
 -- 大域変数の初期化
