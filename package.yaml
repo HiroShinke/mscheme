@@ -76,6 +76,8 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - transformers
+    - hashtables
     - mscheme
     - HUnit
     - silently

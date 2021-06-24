@@ -5,7 +5,6 @@ import Secd
 import SExpr
 import qualified System.IO.Silently as Silently
 import Test.Hspec (Spec, describe, it, shouldBe)
-import Test.Hspec.Expectations
 import Control.Monad.Trans.Except
 
 import qualified Data.HashTable.IO as H
