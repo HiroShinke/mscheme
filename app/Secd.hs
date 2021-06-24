@@ -3,6 +3,13 @@
 module Secd where
 
 import System.IO.Unsafe
+import SExpr
+import qualified Data.HashTable.IO as H
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
+import Error
+
 
 trace :: Show a => String -> a -> a 
 trace s x = unsafePerformIO ( do
@@ -11,103 +18,53 @@ trace s x = unsafePerformIO ( do
                                 return x
                             )
             
-data Value = Num Int
-           | VBool Bool
-           | Closure [Code] Env
-           | Prim (Value->Value)
-           | Cell Value Value
-           | Str String
-           | Sym String
-           | Nil
-
-instance Show Value where
-  show (Prim _) = "Primitive"
-  show (Num n) = "Num " ++ (show n)
-  show (VBool n) = show n
-  show (Closure cs e) =
-    "Colsure " ++ (show cs) ++ " " ++ (show e)
-  show (Cell x xs) = "List " ++ (show x) ++ " " ++ (show xs)
-  show (Str s) = "Str " ++ (show s)
-  show (Sym s) = "Sym " ++ (show s)
-  show Nil = "Nil"
-
-instance Eq Value where
-  Num x == Num y = x == y
-  Str x == Str y = x == y  
-  Sym x == Sym y = x == y
-  VBool x == VBool y = x == y
-  Nil   == Nil   = True
-  Cell x xs == Cell y ys = x == y && xs == ys
-  _ == _             = False
-  
-type Env   = [Value] -- stack of frames. a frame must be list of symbol
-type Stack = [Value]
-type Dump  = [Cont]
-type GEnv  = [(String,Value)]
-
-data Cont = Cont3 Stack Env [Code]
-          | Cont1 [Code]
-  deriving Show
-
-data Code = Ld (Int,Int)
-          | Ldc Value
-          | Ldg String
-          | Ldf [Code]
-          | Args Int
-          | App
-          | Rtn
-          | Sel [Code] [Code]
-          | Join
-          | Pop
-          | Def String
-          | Stop
-          | Dump
-  deriving (Show,Eq)
-
-
-globalEnv :: [(String,Value)]
-globalEnv = []
-
-getLVar :: Env -> Int -> Int -> Value
+getLVar :: Frame -> Int -> Int -> SExpr
 getLVar e i j = let frm = e !! i
                 in  getItem frm j
-  where getItem (Cell x xs) 0 = x
-        getItem (Cell x xs) n = getItem xs (n-1)
-        getItem  Nil n        = error "can't come here"
+  where getItem (CELL x xs) 0 = x
+        getItem (CELL x xs) n = getItem xs (n-1)
+        getItem  NIL n        = error "can't come here"
 
-getGVar :: [(String,Value)] -> String -> Value
-getGVar g key = case lookup key g of
-                  Just v -> v
-                  Nothing -> Nil
+getGVar :: GEnv -> String -> Scm SExpr
+getGVar g key = do
+  x <- liftIO $ H.lookup g key 
+  case x of
+    Just v -> return v
+    Nothing -> throwE $ strMsg "undefined value"
 
-exec :: GEnv -> Stack -> Env -> [Code] -> Dump ->  Value
+exec :: GEnv -> Stack -> Frame -> [Code] -> Dump ->  Scm SExpr
 exec g s e (Ld (i,j):c) d = exec g (v:s) e c d where v = getLVar e i j
 exec g s e (Ldc v:c) d = exec g (v:s) e c d
-exec g s e (Ldg sym:c) d = exec g (v:s) e c d where v = getGVar g sym
-exec g s e (Ldf code: c) d = exec g (Closure code e:s) e c d
+exec g s e (Ldg sym:c) d = do
+  v <- getGVar g sym
+  exec g (v:s) e c d
+exec g s e (Ldf code: c) d = exec g (CLOS' code e:s) e c d
 exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(take n s)
                                                       s' = drop n s
-exec g (Closure code e':vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
+exec g (CLOS' code e':vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
 exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
-exec g (Prim func:v:s) e (App:c) d = exec g (func v:s) e c d
-exec g (VBool b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)
+exec g (PRIM' func:v:s) e (App:c) d = do
+  v' <- func g v
+  exec g (v':s) e c d
+exec g (BOOL b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)
                                        else exec g s e cf (Cont1 c:d)
 exec g s e (Join:[]) (Cont1 c:d) = exec g s e c d
 exec g (v:s) e (Pop:c) d = exec g s e c d
-exec g (v:s) e (Def sym:c) d = exec g' (Sym sym:s) e c d where g' = (sym,v) : g
-exec g (v:s) e (Stop:c) d =  v
-exec g s e (Dump:c) d =  Str $ (dumpString s e c d)
-exec g s e c d = error $ "exec failure: " ++ (dumpString s e c d)
+exec g (v:s) e (Def sym:c) d = do liftIO $ H.insert g sym v  
+                                  exec g (SYM sym:s) e c d
+exec g (v:s) e (Stop:c) d =  return v
+exec g s e (Dump:c) d =  return $ STR $ (dumpString s e c d)
+exec g s e c d = throwE $ strMsg $ "exec failure: " ++ (dumpString s e c d)
                  
 dumpString s e c d =  "s=" ++ (show s) ++ "," ++ 
                       "e=" ++ (show e) ++ "," ++ 
                       "c=" ++ (show c) ++ "," ++                         
                       "d=" ++ (show d)
 
-listToCell :: [Value] -> Value
-listToCell (x:xs) = Cell x (listToCell xs)
-listToCell []     = Nil
+listToCell :: [SExpr] -> SExpr
+listToCell (x:xs) = CELL x (listToCell xs)
+listToCell []     = NIL
 
-cellToList :: Value -> [Value]
-cellToList (Cell x xs) = x : (cellToList xs)
-cellToList  Nil        = []
+cellToList :: SExpr -> [SExpr]
+cellToList (CELL x xs) = x : (cellToList xs)
+cellToList  NIL       = []
