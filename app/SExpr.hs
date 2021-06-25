@@ -23,6 +23,7 @@ data SExpr = INT  !Integer
            | MACR SExpr
            | PRIM' SecdFunc       --- VM built-in function
            | CLOS' [Code] Frame   --- compiled closure
+           | MACR' [Code] Frame   --- compiled macro
 
 -- 等値の定義
 instance Eq SExpr where
@@ -112,6 +113,7 @@ data Code = Ld (Int,Int)
           | Join
           | Pop
           | Def String
+          | Defm String
           | Stop
           | Dump
   deriving (Show,Eq)

@@ -40,6 +40,8 @@ comp env (CELL (SYM "lambda") (CELL args body)) cs =
   in Ldf code : cs
 comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Def n : cs)
+comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs =
+  comp env e (Defm n : cs)
 
 comp env (CELL func args) cs =
   let cs' = comp env func (App:cs)
