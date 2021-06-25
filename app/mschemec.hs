@@ -53,7 +53,7 @@ repl g xs = do
     Left  (ParseErr xs' "EOF") -> return ()
     Left  (ParseErr xs' mes) -> do putStrLn mes
                                    repl g $ dropWhile (/= '\n') xs'
-    Right (expr, xs') -> do let code = compile expr
+    Right (expr, xs') -> do let code = compile g expr
                             putStrLn "Code:"
                             putStrLn (show code)
                             v <- runExceptT $ S.exec g [] [] code [] 

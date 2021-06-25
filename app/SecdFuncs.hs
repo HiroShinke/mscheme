@@ -173,7 +173,7 @@ load g (CELL (STR filename) _) = do
         Left  (ParseErr xs' "EOF") -> return True
         Left  (ParseErr xs' mes) -> do putStrLn mes
                                        return False
-        Right (expr, xs') -> do let code = compile expr
+        Right (expr, xs') -> do let code = compile g expr
                                 putStrLn "Code:"
                                 putStrLn (show code)
                                 v <- runExceptT $ exec g [] [] code [] 

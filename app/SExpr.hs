@@ -98,6 +98,8 @@ type Frame = [SExpr]
 type Stack = [SExpr]
 type Dump  = [Cont]
 
+type Env'  = (GEnv,Frame)
+
 data Cont = Cont3 Stack Frame [Code]
           | Cont1 [Code]
   deriving Show

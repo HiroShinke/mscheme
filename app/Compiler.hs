@@ -11,15 +11,15 @@ import Error
 
 --- compile
 
-compile :: SExpr -> [Code]
-compile expr = comp [] expr [Stop]
+compile :: GEnv -> SExpr -> [Code]
+compile g expr = comp (g,[]) expr [Stop]
 
-comp :: Frame -> SExpr -> [Code] -> [Code]
+comp :: Env' -> SExpr -> [Code] -> [Code]
 comp env v@NIL        cs = Ldc v : cs
 comp env v@(INT n)    cs = Ldc v : cs
 comp env v@(STR n)    cs = Ldc v : cs
 comp env v@(BOOL n)   cs = Ldc v : cs
-comp env v@(SYM name) cs = let pos = findPos name env
+comp (g,e) v@(SYM name) cs = let pos = findPos name e
                          in
                            case pos of
                              Just (i,j) -> Ld (i,j) :cs
@@ -35,8 +35,8 @@ comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs =
       ec = [Ldc NIL, Join]
   in
     comp env pred (Sel tc ec : cs)
-comp env (CELL (SYM "lambda") (CELL args body)) cs = 
-  let code = compBody (args:env) body [Rtn]
+comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs = 
+  let code = compBody (g,(args:e)) body [Rtn]
   in Ldf code : cs
 comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Def n : cs)
