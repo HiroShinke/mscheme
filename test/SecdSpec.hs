@@ -71,7 +71,7 @@ spec = do
       let e = []
       let c = [Args 3,Stop]
       let d = []
-      exec g s e c d `shouldBeT` (listToCell [INT 1,INT 2,INT 3])
+      exec g s e c d `shouldBeT` (listToCell [INT 3,INT 2,INT 1])
 
   let addFunc _ (CELL (INT x) (CELL (INT y) _)) = return $ INT (x+y)
 
@@ -144,6 +144,16 @@ spec = do
                Ldc (INT 3), Ldc (INT 5), Args 2, Ldg "userAdd", App, Stop ]
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
+
+    describe "Macro" $
+      it "case 1" $ do
+      g <- H.new
+      let closCodes = [Ld (0,0), Rtn ]
+      let s = []
+      let e = []
+      let c = [Ldf closCodes, Defm "a", Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (SYM "a")
 
 
   describe "Pop" $ 
