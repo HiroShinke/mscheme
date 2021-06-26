@@ -172,3 +172,17 @@ spec = do
                                                             Ldc (INT 2),
                                                             Args 2,
                                                             Ldg "+", App, Stop ]
+
+  describe "use macro5" $
+    it "plus" $ do
+    let lmd = lN[ SYM "lambda", lN [ SYM "n", SYM "m" ],
+                  lN [SYM "list", lN [ SYM "quote", SYM "+"], SYM "n", SYM "m" ] ]
+    g <- H.fromList [("list", PRIM' list')]
+    let sexp = lN[ SYM "define-macro", SYM "plus", lmd ]
+    (Right code) <- runExceptT $ compile g sexp
+    runExceptT $ exec g [] [] code []
+    compile g (lN[ SYM "plus", SYM "a", SYM "b"] ) `shouldBeT` [Ldg "a",
+                                                                Ldg "b",
+                                                                Args 2,
+                                                                Ldg "+", App, Stop ]
+
