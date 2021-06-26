@@ -30,7 +30,7 @@ getGVar g key = do
   x <- liftIO $ H.lookup g key 
   case x of
     Just v -> return v
-    Nothing -> throwE $ strMsg "undefined value"
+    Nothing -> throwE $ strMsg $ "undefined value: " ++ key
 
 exec :: GEnv -> Stack -> Frame -> [Code] -> Dump ->  Scm SExpr
 exec g s e (Ld (i,j):c) d = exec g (v:s) e c d where v = getLVar e i j
@@ -39,7 +39,7 @@ exec g s e (Ldg sym:c) d = do
   v <- getGVar g sym
   exec g (v:s) e c d
 exec g s e (Ldf code: c) d = exec g (CLOS' code e:s) e c d
-exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(take n s)
+exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(reverse $ take n s)
                                                       s' = drop n s
 exec g (CLOS' code e':vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
 exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
@@ -52,6 +52,8 @@ exec g s e (Join:[]) (Cont1 c:d) = exec g s e c d
 exec g (v:s) e (Pop:c) d = exec g s e c d
 exec g (v:s) e (Def sym:c) d = do liftIO $ H.insert g sym v  
                                   exec g (SYM sym:s) e c d
+exec g (CLOS' code e':s) e (Defm sym:c) d = do liftIO $ H.insert g sym (MACR' code e')
+                                               exec g (SYM sym:s) e c d
 exec g (v:s) e (Stop:c) d =  return v
 exec g s e (Dump:c) d =  return $ STR $ (dumpString s e c d)
 exec g s e c d = throwE $ strMsg $ "exec failure: " ++ (dumpString s e c d)
