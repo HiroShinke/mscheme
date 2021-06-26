@@ -186,3 +186,32 @@ spec = do
                                                                 Args 2,
                                                                 Ldg "+", App, Stop ]
 
+
+  describe "quasiquote" $
+    it "lambda" $ do 
+    g <- H.new    
+    compile g (lN[ SYM "quasiquote", SYM "a"] ) `shouldBeT` [ Ldc (SYM "a"), Stop ]
+
+
+  describe "quasiquote" $
+    it "lambda" $ do 
+    g <- H.fromList [("a", INT 1)]
+    compile g (lN[ SYM "quasiquote",
+                   lN[ SYM "unquote", SYM "a"] ] ) `shouldBeT` [ Ldc (INT 1), Stop ]
+
+  describe "quasiquote" $
+    it "lambda" $ do 
+    g <- H.fromList [("b", lN[ SYM "a", SYM "b", SYM "c"] )]
+    compile g (lN[ SYM "quasiquote",
+                   lN[ SYM "unquote", SYM "b"] ] ) `shouldBeT`[ Ldc (lN[ SYM "a",
+                                                                         SYM "b",
+                                                                         SYM "c"]), Stop ]
+  describe "quasiquote" $
+    it "lambda" $ do 
+    g <- H.new    
+    compile g (lN[ SYM "quasiquote",
+                   lN[SYM "a", SYM "b",SYM "c"] ] ) `shouldBeT` [ Ldc (lN[ SYM "a",
+                                                                           SYM "b",
+                                                                           SYM "c"]), Stop ]
+
+
