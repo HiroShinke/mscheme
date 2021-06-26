@@ -9,7 +9,6 @@ import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 import System.IO
 import qualified Secd as S
-import Compiler
 import Reader
 import Error
 import SExpr
