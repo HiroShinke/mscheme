@@ -101,7 +101,9 @@ sExpLength NIL = 0
 translator :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
 translator n env ls@(CELL (CELL _ _) _) cs = translatorList n env ls cs
 translator n env ls@(CELL _ _) cs = translatorAtom n env ls cs
-translator n env e cs = return $ Ldc e : cs
+translator n env e cs = do
+  liftIO $ putStrLn $ "!!!!!: " ++ (show e)
+  return $ Ldc e : cs
 
 
 translatorList :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
@@ -112,9 +114,11 @@ translatorList n env ls@(CELL (CELL (SYM "unquote-splicing") _) _) cs =
 translatorList n env ls@(CELL (CELL (SYM "quasiquote") _) _) cs =
   translatorQuasiquote n env ls cs
 translatorList n env (CELL x xs) cs = do
+  liftIO $ putStrLn $ "!!!!!: x=" ++ (show x)
+  liftIO $ putStrLn $ "!!!!!: xs=" ++ (show xs)  
   c' <- translator n env x []
   cs' <- translator n env xs []
-  return $ consCode c' cs' ++ cs
+  return $ (consCode c' cs') ++ cs
 translatorList _ _ _ _ = throwE $ strMsg "shouldn't come here"
 
 translatorSub :: Env' -> SExpr -> SExpr -> Int -> Int -> [Code] -> Scm [Code]
@@ -171,7 +175,10 @@ translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) cs =
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) cs =
   translatorSub env quasiquote e n 1 cs
 translatorAtom n env (CELL e xs) cs = do
+  liftIO $ putStrLn $ "translatorAtom: e=" ++ (show e)
+  liftIO $ putStrLn $ "translatorAtom: xs=" ++ (show xs)  
   xs' <- translator n env xs []
+  liftIO $ putStrLn $ "translatorAtom: xs'=" ++ (show xs')  
   return $ consCode [Ldc e] xs' ++ cs
 
 ---- helper function
