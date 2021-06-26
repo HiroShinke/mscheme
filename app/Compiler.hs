@@ -4,55 +4,74 @@ module Compiler where
 
 import Data.IORef
 import qualified Secd as S
+import qualified Data.HashTable.IO as H
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 import SExpr
 import System.IO
 import Error
 
 --- compile
 
-compile :: GEnv -> SExpr -> [Code]
+compile :: GEnv -> SExpr -> Scm [Code]
 compile g expr = comp (g,[]) expr [Stop]
 
-comp :: Env' -> SExpr -> [Code] -> [Code]
-comp env v@NIL        cs = Ldc v : cs
-comp env v@(INT n)    cs = Ldc v : cs
-comp env v@(STR n)    cs = Ldc v : cs
-comp env v@(BOOL n)   cs = Ldc v : cs
+comp :: Env' -> SExpr -> [Code] -> Scm [Code]
+comp env v@NIL        cs = return $ Ldc v : cs
+comp env v@(INT n)    cs = return $ Ldc v : cs
+comp env v@(STR n)    cs = return $ Ldc v : cs
+comp env v@(BOOL n)   cs = return $ Ldc v : cs
 comp (g,e) v@(SYM name) cs = let pos = findPos name e
                          in
                            case pos of
-                             Just (i,j) -> Ld (i,j) :cs
-                             Nothing    -> Ldg name : cs
-comp env (CELL (SYM "quote") (CELL e NIL) ) cs  = Ldc e : cs
-comp env (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) cs =
-  let tc = comp env tb [Join]
-      ec = comp env eb [Join]
-  in
-    comp env pred (Sel tc ec : cs)
-comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs =
-  let tc = comp env tb [Join]
-      ec = [Ldc NIL, Join]
-  in
-    comp env pred (Sel tc ec : cs)
-comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs = 
-  let code = compBody (g,(args:e)) body [Rtn]
-  in Ldf code : cs
+                             Just (i,j) -> return $ Ld (i,j) :cs
+                             Nothing    -> return $ Ldg name : cs
+comp env (CELL (SYM "quote") (CELL e NIL) ) cs  = return $ Ldc e : cs
+comp env (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) cs = do
+  tc <- comp env tb [Join]
+  ec <- comp env eb [Join]
+  comp env pred (Sel tc ec : cs)
+comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs = do
+  tc <- comp env tb [Join]
+  let ec = [Ldc NIL, Join]
+  comp env pred (Sel tc ec : cs)
+comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs = do
+  code <- compBody (g,(args:e)) body [Rtn]
+  return $ Ldf code : cs
 comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Def n : cs)
 comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Defm n : cs)
 
-comp env (CELL func args) cs =
-  let cs' = comp env func (App:cs)
-  in
-    compArguments env args (Args (sExpLength args):cs')
-      
-compArguments env (CELL a as) cs = comp env a (compArguments env as cs)
-compArguments _  NIL cs = cs
+comp env@(g,e) (CELL func@(SYM sym) args) cs = do
+  x <- liftIO $ H.lookup g sym
+  case x of
+    Just (MACR' code e) -> do
+--    liftIO $ putStrLn $ "xxxxx: code=" ++ (show code)
+--    liftIO $ putStrLn $ "xxxxx: e=" ++ (show e)
+--    liftIO $ putStrLn $ "args: "  ++ (show args)
+      args' <- S.exec g [] (args:e) code [Cont3 [] [] [Stop]]
+--    liftIO $ putStrLn $ "args': "  ++ (show args')
+      comp env args' cs
+    Just _ -> comp' env (CELL func args) cs
+    Nothing -> comp' env (CELL func args) cs
+
+comp env (CELL func args) cs = comp' env (CELL func args) cs
+
+comp' env (CELL func args) cs = do
+  cs' <- comp env func (App:cs)
+  compArguments env args (Args (sExpLength args):cs')
+
+compArguments env (CELL a as) cs = do
+  cs' <- compArguments env as cs
+  comp env a cs'
+compArguments _  NIL cs = return $ cs
 
 compBody env (CELL e NIL) cs = comp env e cs
-compBody env (CELL e es) cs  = comp env e (Pop : compBody env es cs)
+compBody env (CELL e es) cs  = do
+  cs' <- compBody env es cs
+  comp env e (Pop : cs')
 
 
 findPos :: String -> Frame -> Maybe (Int,Int)
