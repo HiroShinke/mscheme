@@ -7,9 +7,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 
 import Error
-import Compiler
 import SExpr
-import Reader
 import Secd
 
 -- リスト操作
@@ -159,24 +157,3 @@ append' _  (CELL x xs)  = do
   liftIO $ putStrLn $ "appped'3 xs=" ++ (show xs)  
   throwE $ strMsg $ "append for invlid list!: " ++ (show x)
 
--- load 
-
-load :: SecdFunc
-load g (CELL (STR filename) _) = do
-  xs <- lift $ readFile filename
-  r <- iter xs
-  if r then return true else return false
-  where
-    iter :: String -> Scm Bool
-    iter xs = 
-      case readSExpr xs of
-        Left  (ParseErr xs' "EOF") -> return True
-        Left  (ParseErr xs' mes) -> do liftIO $ putStrLn mes
-                                       return False
-        Right (expr, xs') -> do code <- compile g expr
-                                liftIO $ putStrLn "Code:"
-                                liftIO $ putStrLn (show code)
-                                v <- exec g [] [] code [] 
-                                liftIO $ putStrLn (show v)
-                                iter xs'
-load _ _ = throwE $ strMsg "invalid load form"

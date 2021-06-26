@@ -11,6 +11,7 @@ import Control.Monad.IO.Class
 import SExpr
 import System.IO
 import Error
+import qualified SecdFuncs as F
 
 --- compile
 
@@ -43,6 +44,8 @@ comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Def n : cs)
 comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Defm n : cs)
+comp env (CELL (SYM "quasiquote") (CELL e NIL) ) cs =
+  translator 0 env e cs
 
 comp env@(g,e) (CELL func@(SYM sym) args) cs = do
   x <- liftIO $ H.lookup g sym
@@ -94,3 +97,91 @@ cellToEnv NIL = []
 sExpLength :: SExpr -> Int
 sExpLength (CELL h t) = 1 + sExpLength t
 sExpLength NIL = 0
+
+translator :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translator n env ls@(CELL (CELL _ _) _) cs = translatorList n env ls cs
+translator n env ls@(CELL _ _) cs = translatorAtom n env ls cs
+translator n env e cs = return $ Ldc e : cs
+
+
+translatorList :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorList n env ls@(CELL (CELL (SYM "unquote") _) _) cs =
+  translatorUnquote n env ls cs
+translatorList n env ls@(CELL (CELL (SYM "unquote-splicing") _) _) cs =
+  translatorUnquoteSplicing n env ls cs
+translatorList n env ls@(CELL (CELL (SYM "quasiquote") _) _) cs =
+  translatorQuasiquote n env ls cs
+translatorList n env (CELL x xs) cs = do
+  c' <- translator n env x []
+  cs' <- translator n env xs []
+  return $ consCode c' cs' ++ cs
+translatorList _ _ _ _ = throwE $ strMsg "shouldn't come here"
+
+translatorSub :: Env' -> SExpr -> SExpr -> Int -> Int -> [Code] -> Scm [Code]
+translatorSub env sym e n succ cs = do
+  cs' <- translator (n + succ) env e []
+  return $ consCode [Ldc sym] (consCode cs' [Ldc NIL]) ++ cs
+
+translatorUnquote :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorUnquote 0 env (CELL (CELL (SYM "unquote") (CELL x NIL)) xs) cs = do
+  x' <- eval' env x
+  xs' <- translator 0 env xs []
+  return $ consCode [Ldc x'] xs' ++ cs
+
+translatorUnquote n env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) cs = do
+  c' <- translatorSub env unquote e n (-1) []
+  cs' <- translator n env xs []
+  return $ consCode c' cs' ++ cs
+
+translatorUnquoteSplicing :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorUnquoteSplicing 0 env (CELL (CELL (SYM "unquote-splicing") (CELL x NIL)) xs) cs = do
+  x' <- eval' env x
+  xs' <- translator 0 env xs []
+  return $ appendCode [Ldc x'] xs' ++ cs
+    
+translatorUnquoteSplicing n env (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) cs = do
+  e' <- translatorSub env unquoteSplicing e n (-1) []
+  xs' <- translator n env xs []
+  return $ consCode e' xs' ++ cs
+
+translatorQuasiquote :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorQuasiquote n env (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) cs = do
+  e' <- translatorSub env quasiquote e n 1 []
+  xs' <- translator n env xs []
+  return $ consCode e' xs' ++ cs
+
+translatorAtom :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) cs = do
+  e' <- eval' env e
+  return $ Ldc e' : cs
+  
+translatorAtom 1 env (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
+  e' <- eval' env e
+  return $ consCode [Ldc unquote] [Ldc e'] ++ cs
+
+translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) cs = 
+  translatorSub env unquote e n (-1) cs
+translatorAtom 0 env (CELL (SYM "unquote-splicing") _) cs =
+  throwE $ strMsg "invalid unquote-splicing form"
+translatorAtom 1 env (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
+  e' <- eval' env e
+  return $ consCode [Ldc unquoteSplicing] [Ldc e'] ++ cs
+translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) cs =
+  translatorSub env unquoteSplicing e n (-1) cs
+translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) cs =
+  translatorSub env quasiquote e n 1 cs
+translatorAtom n env (CELL e xs) cs = do
+  xs' <- translator n env xs []
+  return $ consCode [Ldc e] xs' ++ cs
+
+---- helper function
+eval' :: Env' -> SExpr -> Scm SExpr
+eval' env@(g,e) x = do
+  cs' <- compile g x
+  S.exec g [] e cs' [Cont3 [] [] [Stop]]
+
+consCode :: [Code] -> [Code] -> [Code]
+consCode cs1 cs2 = cs1 ++ cs2 ++ [Args 2, Ldc (PRIM' F.cons), App]
+
+appendCode :: [Code] -> [Code] -> [Code]
+appendCode cs1 cs2 = cs1 ++ cs2 ++ [Args 2, Ldc (PRIM' F.append'), App]

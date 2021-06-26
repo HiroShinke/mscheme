@@ -10,7 +10,6 @@ import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 import Error
 
-
 trace :: Show a => String -> a -> a 
 trace s x = unsafePerformIO ( do
                                 putStrLn s
