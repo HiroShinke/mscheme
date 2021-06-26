@@ -44,6 +44,7 @@ showCell (CELL a d) =
   show a ++ case d of
               NIL      -> ""
               PRIM _   -> "<primitive>"
+              PRIM' _  -> "<primitive'>"
               CLOS _ _ -> "<closure>"
               SYNT _   -> "<syntax>"
               INT x    -> " . " ++ show x
@@ -61,6 +62,7 @@ instance Show SExpr where
   show NIL        = "()"
   show (SYNT _)   = "<syntax>"
   show (PRIM _)   = "<primitive>"
+  show (PRIM' _)  = "<primitive'>"
   show (CLOS _ _) = "<closure>"
   show (CELL (SYM "quote") (CELL e NIL)) = "'" ++ (show e)
   show (CELL (SYM "quasiquote") (CELL e NIL)) = "`" ++ (show e)
