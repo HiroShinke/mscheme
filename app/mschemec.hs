@@ -53,13 +53,16 @@ repl g xs = do
     Left  (ParseErr xs' "EOF") -> return ()
     Left  (ParseErr xs' mes) -> do putStrLn mes
                                    repl g $ dropWhile (/= '\n') xs'
-    Right (expr, xs') -> do let code = compile g expr
+    Right (expr, xs') -> do code <- runExceptT $ compile g expr
                             putStrLn "Code:"
                             putStrLn (show code)
-                            v <- runExceptT $ S.exec g [] [] code [] 
-                            putStrLn (show v)
+                            case code of
+                              Right cd ->  do
+                                v <- runExceptT $ S.exec g [] [] cd []
+                                putStrLn (show v)
+                              Left err -> do
+                                putStrLn (show err)
                             repl g xs'
-
 main :: IO ()
 main = do
   xs <- hGetContents stdin

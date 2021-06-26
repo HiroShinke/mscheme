@@ -164,19 +164,19 @@ append' _  (CELL x xs)  = do
 load :: SecdFunc
 load g (CELL (STR filename) _) = do
   xs <- lift $ readFile filename
-  r <- lift $ iter xs
+  r <- iter xs
   if r then return true else return false
   where
-    iter :: String -> IO Bool
+    iter :: String -> Scm Bool
     iter xs = 
       case readSExpr xs of
         Left  (ParseErr xs' "EOF") -> return True
-        Left  (ParseErr xs' mes) -> do putStrLn mes
+        Left  (ParseErr xs' mes) -> do liftIO $ putStrLn mes
                                        return False
-        Right (expr, xs') -> do let code = compile g expr
-                                putStrLn "Code:"
-                                putStrLn (show code)
-                                v <- runExceptT $ exec g [] [] code [] 
-                                putStrLn (show v)
+        Right (expr, xs') -> do code <- compile g expr
+                                liftIO $ putStrLn "Code:"
+                                liftIO $ putStrLn (show code)
+                                v <- exec g [] [] code [] 
+                                liftIO $ putStrLn (show v)
                                 iter xs'
 load _ _ = throwE $ strMsg "invalid load form"
