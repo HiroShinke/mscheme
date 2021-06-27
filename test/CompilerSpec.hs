@@ -217,6 +217,29 @@ spec = do
       (Left e) -> putStrLn (show e)
 
 
+  describe "use macro7" $
+    it "use quasiquote" $ do
+    let lmd = lN[ SYM "lambda", lN [ SYM "args" ],
+                  lN [SYM "quasiquote",
+                      lN[ SYM "+",
+                          lN[ SYM "unquote-splicing", SYM "args" ]
+                        ]
+                     ]
+                ]
+    let sexp = lN[ SYM "define-macro", SYM "plus'", lmd ]
+    g <- H.new
+    mcode <- runExceptT $ compile g sexp
+    case mcode of
+      (Right code) -> do
+        runExceptT $ exec g [] [] code []
+        compile g (lN[ SYM "plus'", INT 1, INT 2] ) `shouldBeT` [Ldc (INT 1),
+                                                                 Ldc (INT 2),
+                                                                 Args 2,
+                                                                 Ldg "+", App, Stop ]
+      (Left e) -> putStrLn (show e)
+
+
+
   describe "quasiquote" $
     it "no unquote" $ do 
     g <- H.new    
@@ -248,4 +271,35 @@ spec = do
        Stop]
     -- some effect as bellow (but complicated) 
     -- [ Ldc (lN[ SYM "a",SYM "b",SYM "c"]), Stop ] 
+
+  describe "quasiquote" $
+    it "list with unquote" $ do 
+    g <- H.new    
+    compile g (lN[ SYM "quasiquote",
+                   lN[SYM "a",
+                      lN[SYM "unquote", SYM "b"],
+                      SYM "c"]
+                 ]
+              ) `shouldBeT`
+      [Ldc (SYM "a"),Ldg "b",Ldc (SYM "c"),Ldc NIL,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Stop]
+
+  describe "quasiquote" $
+    it "list with unquote-splicing" $ do 
+    g <- H.new    
+    compile g (lN[ SYM "quasiquote",
+                   lN[SYM "a",
+                      lN[SYM "unquote-splicing", SYM "b"],
+                      SYM "c"]
+                 ]
+              ) `shouldBeT`
+      [Ldc (SYM "a"),Ldg "b",Ldc (SYM "c"),Ldc NIL,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Args 2,Ldc (PRIM' F.append'),App,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Stop]
+
 
