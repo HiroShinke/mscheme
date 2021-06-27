@@ -45,6 +45,9 @@ exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
 exec g (PRIM' func:v:s) e (App:c) d = do
   v' <- func g v
   exec g (v':s) e c d
+exec g (CONT (Cont3 s' e' c') d':((CELL v vs):s)) e (App:c) d = exec g (v:s') e' c' d'
+
+  
 exec g (BOOL b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)
                                        else exec g s e cf (Cont1 c:d)
 exec g s e (Join:[]) (Cont1 c:d) = exec g s e c d
@@ -53,6 +56,8 @@ exec g (v:s) e (Def sym:c) d = do liftIO $ H.insert g sym v
                                   exec g (SYM sym:s) e c d
 exec g (CLOS' code e':s) e (Defm sym:c) d = do liftIO $ H.insert g sym (MACR' code e')
                                                exec g (SYM sym:s) e c d
+exec g s e (Ldct cs:c) d = exec g (CONT (Cont3 s e cs) d:s) e c d
+                           
 exec g (v:s) e (Stop:c) d =  return v
 exec g s e (Dump:c) d =  return $ STR $ (dumpString s e c d)
 exec g s e c d = throwE $ strMsg $ "exec failure: " ++ (dumpString s e c d)

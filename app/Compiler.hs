@@ -61,7 +61,9 @@ comp env (CELL (SYM "unquote") (CELL e NIL) ) cs =
   throwE $ strMsg "unquote appeared outside quasiquote"
 comp env (CELL (SYM "unquote-splicing") (CELL e NIL) ) cs =
   throwE $ strMsg "unquote-splicing appeared outside quasiquote"
-
+comp env (CELL (SYM "call/cc") (CELL e NIL)) cs = do
+  cs' <- comp env e (App:cs)
+  return $ [Ldct cs, Args 1] ++ cs'
 
 comp env@(g,e) (CELL func@(SYM sym) args) cs = do
   x <- liftIO $ H.lookup g sym

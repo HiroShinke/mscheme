@@ -302,4 +302,26 @@ spec = do
        Args 2,Ldc (PRIM' F.cons),App,
        Stop]
 
+  -- (call/cc (lambda (k) (k 1)))
+  describe "call/cc" $
+    it "call/cc" $ do 
+    g <- H.new    
+    compile g (lN[ SYM "call/cc", lN[ SYM "lambda",
+                                      lN[ SYM "k" ],
+                                      lN[ SYM "k", INT 1] ] ]) `shouldBeT`
+      [ Ldct [Stop], Args 1, Ldf [ Ldc (INT 1), Args 1,
+                                   Ld (0,0), App, Rtn], App, Stop ]
+      
+    
+  -- (call/cc (lambda (k) (k 1)))
+  describe "call/cc" $
+    it "call/cc" $ do 
+    g <- H.new    
+    (Right cs) <- runExceptT $ compile g (lN[ SYM "call/cc", lN[ SYM "lambda",
+                                                                 lN[ SYM "k" ],
+                                                                 lN[ SYM "k", INT 1] ] ])
+    (Right v) <- runExceptT $ exec g [] [] cs []
+    v `shouldBe` INT 1
+    
+
 
