@@ -31,10 +31,12 @@ comp env v@(INT n)    cs = return $ Ldc v : cs
 comp env v@(STR n)    cs = return $ Ldc v : cs
 comp env v@(BOOL n)   cs = return $ Ldc v : cs
 comp (g,e) v@(SYM name) cs = let pos = findPos name e
-                         in
-                           case pos of
-                             Just (i,j) -> return $ Ld (i,j) :cs
-                             Nothing    -> return $ Ldg name : cs
+                             in do
+  debugPrint $ "comp sym: sym=" ++ name
+  debugPrint $ "comp sym: e=" ++ (show e)
+  case pos of
+    Just (i,j) -> return $ Ld (i,j) :cs
+    Nothing    -> return $ Ldg name : cs
 comp env (CELL (SYM "quote") (CELL e NIL) ) cs  = return $ Ldc e : cs
 comp env (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) cs = do
   tc <- comp env tb [Join]
@@ -112,7 +114,8 @@ translator :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
 translator n env ls@(CELL (CELL _ _) _) cs = translatorList n env ls cs
 translator n env ls@(CELL _ _) cs = translatorAtom n env ls cs
 translator n env e cs = do
-  debugPrint $ "!!!!!: " ++ (show e)
+  debugPrint $ "translator.n: env=" ++ (show env)
+  debugPrint $ "translator.n: e=" ++ (show e)
   return $ Ldc e : cs
 
 
@@ -138,9 +141,9 @@ translatorSub env sym e n succ cs = do
 
 translatorUnquote :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
 translatorUnquote 0 env (CELL (CELL (SYM "unquote") (CELL x NIL)) xs) cs = do
-  x' <- eval' env x
+  x' <- comp env x []
   xs' <- translator 0 env xs []
-  return $ consCode [Ldc x'] xs' ++ cs
+  return $ consCode x' xs' ++ cs
 
 translatorUnquote n env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) cs = do
   c' <- translatorSub env unquote e n (-1) []
@@ -166,8 +169,9 @@ translatorQuasiquote n env (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) cs =
 
 translatorAtom :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
 translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) cs = do
-  e' <- eval' env e
-  return $ Ldc e' : cs
+  debugPrint $ "translatorAtom e=" ++ (show e)
+  debugPrint $ "translatorAtom env=" ++ (show env)
+  comp env e cs
   
 translatorAtom 1 env (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
   e' <- eval' env e
@@ -185,17 +189,18 @@ translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) cs =
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) cs =
   translatorSub env quasiquote e n 1 cs
 translatorAtom n env (CELL e xs) cs = do
-  debugPrint $ "translatorAtom: e=" ++ (show e)
-  debugPrint $ "translatorAtom: xs=" ++ (show xs)  
+  debugPrint $ "translatorAtom.n: env=" ++ (show env)
+  debugPrint $ "translatorAtom.n: e=" ++ (show e)
+  debugPrint $ "translatorAtom.n: xs=" ++ (show xs)
   xs' <- translator n env xs []
-  debugPrint $ "translatorAtom: xs'=" ++ (show xs')  
+  debugPrint $ "translatorAtom.n: xs'=" ++ (show xs')  
   return $ consCode [Ldc e] xs' ++ cs
 
 ---- helper function
 eval' :: Env' -> SExpr -> Scm SExpr
 eval' env@(g,e) x = do
-  cs' <- compile g x
-  S.exec g [] e cs' [Cont3 [] [] [Stop]]
+  cs' <- comp env x [Stop]
+  S.exec g [] e cs' []
 
 consCode :: [Code] -> [Code] -> [Code]
 consCode cs1 cs2 = cs1 ++ cs2 ++ [Args 2, Ldc (PRIM' F.cons), App]
