@@ -13,7 +13,7 @@ import System.IO
 import Error
 import qualified SecdFuncs as F
 
-debugPrintOn = True
+debugPrintOn = False
 
 debugPrint :: String -> Scm ()
 debugPrint msg = if debugPrintOn
@@ -57,6 +57,11 @@ comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs =
   comp env e (Defm n : cs)
 comp env (CELL (SYM "quasiquote") (CELL e NIL) ) cs =
   translator 0 env e cs
+comp env (CELL (SYM "unquote") (CELL e NIL) ) cs =
+  throwE $ strMsg "unquote appeared outside quasiquote"
+comp env (CELL (SYM "unquote-splicing") (CELL e NIL) ) cs =
+  throwE $ strMsg "unquote-splicing appeared outside quasiquote"
+
 
 comp env@(g,e) (CELL func@(SYM sym) args) cs = do
   x <- liftIO $ H.lookup g sym
