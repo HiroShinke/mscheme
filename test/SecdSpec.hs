@@ -6,11 +6,13 @@ import SExpr
 import qualified System.IO.Silently as Silently
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Control.Monad.Trans.Except
-
+import qualified SecdFuncs as F
 import qualified Data.HashTable.IO as H
 type HashTable k v = H.CuckooHashTable k v
 
-
+lN :: [SExpr] -> SExpr
+lN (x:xs) = (CELL x (lN xs))
+lN []     = NIL
 
 shouldBeT m v = do
   v' <- runExceptT m
@@ -193,4 +195,28 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 2)
 
-    
+
+    let cscont = [Ldc (SYM "c"), Args 3, Ldg "list", App, Stop]
+    let cs = [Ldc (SYM "a"), Ldct cscont, Args 1,
+              Ldf [Ld (0,0), Def "x", Pop, Ldc (SYM "b"), Rtn], App] ++ cscont
+
+    describe "call/cc" $
+      it "save continuation" $ do
+      g <- H.fromList [("list",PRIM' F.list')]
+      let s = []
+      let e = []
+      let c = cs
+      let d = []
+      exec g s e c d `shouldBeT` lN[ SYM "a", SYM "b", SYM "c" ]
+
+    describe "call/cc" $
+      it "save continuation" $ do
+      g <- H.fromList [("list",PRIM' F.list')]
+      let s = []
+      let e = []
+      let c = cs
+      let d = []
+      runExceptT $ exec g s e c d
+      let cs' = [ Ldc (SYM "d"), Args 1, Ldg "x", App ]
+      exec g [] [] cs' [] `shouldBeT` lN[ SYM "a", SYM "d", SYM "c" ]
+      
