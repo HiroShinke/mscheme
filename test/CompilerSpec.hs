@@ -9,6 +9,7 @@ import qualified System.IO.Silently as Silently
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Control.Monad.Trans.Except
 import qualified Data.HashTable.IO as H
+import qualified SecdFuncs as F
 
 -- helpers
 l2 :: SExpr -> SExpr -> SExpr
@@ -23,8 +24,16 @@ lN []     = NIL
 
 
 shouldBeT ma b = do
-  a <- runExceptT ma
-  a `shouldBe` (Right b)
+  (Right a) <- runExceptT ma
+  a `compareCode` b
+
+-- round about for failure of PRIM' equality
+compareCode a b =
+  primDummy a `shouldBe` primDummy b
+  where primDummy (Ldc (PRIM' _):cs)  = Ldc NIL : primDummy cs
+        primDummy (c:cs) = c : primDummy cs
+        primDummy []     = []
+
 
 list' :: SecdFunc
 list' _  e = return e
@@ -210,8 +219,12 @@ spec = do
     it "lambda" $ do 
     g <- H.new    
     compile g (lN[ SYM "quasiquote",
-                   lN[SYM "a", SYM "b",SYM "c"] ] ) `shouldBeT` [ Ldc (lN[ SYM "a",
-                                                                           SYM "b",
-                                                                           SYM "c"]), Stop ]
-
+                   lN[SYM "a", SYM "b",SYM "c"] ] ) `shouldBeT`
+      [Ldc (SYM "a"),Ldc (SYM "b"),Ldc (SYM "c"),Ldc NIL,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Args 2,Ldc (PRIM' F.cons),App,
+       Stop]
+    -- some effect as bellow (but complicated) 
+    -- [ Ldc (lN[ SYM "a",SYM "b",SYM "c"]), Stop ] 
 
