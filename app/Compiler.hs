@@ -13,6 +13,13 @@ import System.IO
 import Error
 import qualified SecdFuncs as F
 
+debugPrintOn = False
+
+debugPrint :: String -> Scm ()
+debugPrint msg = if debugPrintOn
+                 then liftIO $ putStrLn $ msg
+                 else return ()
+
 --- compile
 
 compile :: GEnv -> SExpr -> Scm [Code]
@@ -51,11 +58,11 @@ comp env@(g,e) (CELL func@(SYM sym) args) cs = do
   x <- liftIO $ H.lookup g sym
   case x of
     Just (MACR' code e) -> do
---    liftIO $ putStrLn $ "xxxxx: code=" ++ (show code)
---    liftIO $ putStrLn $ "xxxxx: e=" ++ (show e)
---    liftIO $ putStrLn $ "args: "  ++ (show args)
+      debugPrint $ "xxxxx: code=" ++ (show code)
+      debugPrint $ "xxxxx: e=" ++ (show e)
+      debugPrint $ "args: "  ++ (show args)
       args' <- S.exec g [] (args:e) code [Cont3 [] [] [Stop]]
---    liftIO $ putStrLn $ "args': "  ++ (show args')
+      debugPrint $ "args': "  ++ (show args')
       comp env args' cs
     Just _ -> comp' env (CELL func args) cs
     Nothing -> comp' env (CELL func args) cs
@@ -102,7 +109,7 @@ translator :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
 translator n env ls@(CELL (CELL _ _) _) cs = translatorList n env ls cs
 translator n env ls@(CELL _ _) cs = translatorAtom n env ls cs
 translator n env e cs = do
-  liftIO $ putStrLn $ "!!!!!: " ++ (show e)
+  debugPrint $ "!!!!!: " ++ (show e)
   return $ Ldc e : cs
 
 
@@ -114,8 +121,8 @@ translatorList n env ls@(CELL (CELL (SYM "unquote-splicing") _) _) cs =
 translatorList n env ls@(CELL (CELL (SYM "quasiquote") _) _) cs =
   translatorQuasiquote n env ls cs
 translatorList n env (CELL x xs) cs = do
-  liftIO $ putStrLn $ "!!!!!: x=" ++ (show x)
-  liftIO $ putStrLn $ "!!!!!: xs=" ++ (show xs)  
+  debugPrint $ "!!!!!: x=" ++ (show x)
+  debugPrint $ "!!!!!: xs=" ++ (show xs)  
   c' <- translator n env x []
   cs' <- translator n env xs []
   return $ (consCode c' cs') ++ cs
@@ -175,10 +182,10 @@ translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) cs =
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) cs =
   translatorSub env quasiquote e n 1 cs
 translatorAtom n env (CELL e xs) cs = do
-  liftIO $ putStrLn $ "translatorAtom: e=" ++ (show e)
-  liftIO $ putStrLn $ "translatorAtom: xs=" ++ (show xs)  
+  debugPrint $ "translatorAtom: e=" ++ (show e)
+  debugPrint $ "translatorAtom: xs=" ++ (show xs)  
   xs' <- translator n env xs []
-  liftIO $ putStrLn $ "translatorAtom: xs'=" ++ (show xs')  
+  debugPrint $ "translatorAtom: xs'=" ++ (show xs')  
   return $ consCode [Ldc e] xs' ++ cs
 
 ---- helper function
