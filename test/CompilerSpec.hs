@@ -24,8 +24,10 @@ lN []     = NIL
 
 
 shouldBeT ma b = do
-  (Right a) <- runExceptT ma
-  a `compareCode` b
+  xa <- runExceptT ma
+  case xa of
+    Right a -> a `compareCode` b
+    Left  e ->  putStrLn (show e)
 
 -- round about for failure of PRIM' equality
 compareCode a b =
@@ -195,28 +197,47 @@ spec = do
                                                                 Args 2,
                                                                 Ldg "+", App, Stop ]
 
+  describe "use macro6" $
+    it "use quasiquote" $ do
+    let lmd = lN[ SYM "lambda", lN [ SYM "n", SYM "m" ],
+                  lN [SYM "quasiquote",
+                      lN[ SYM "+",
+                          lN[SYM "unquote", SYM "n"],
+                          lN[SYM "unquote", SYM "m"]]]]
+    let sexp = lN[ SYM "define-macro", SYM "plus", lmd ]
+    g <- H.new
+    mcode <- runExceptT $ compile g sexp
+    case mcode of
+      (Right code) -> do
+        runExceptT $ exec g [] [] code []
+        compile g (lN[ SYM "plus", INT 1, INT 2] ) `shouldBeT` [Ldc (INT 1),
+                                                                Ldc (INT 2),
+                                                                Args 2,
+                                                                Ldg "+", App, Stop ]
+      (Left e) -> putStrLn (show e)
+
 
   describe "quasiquote" $
-    it "lambda" $ do 
+    it "no unquote" $ do 
     g <- H.new    
     compile g (lN[ SYM "quasiquote", SYM "a"] ) `shouldBeT` [ Ldc (SYM "a"), Stop ]
 
 
   describe "quasiquote" $
-    it "lambda" $ do 
+    it "unquote to Ldg1" $ do 
     g <- H.fromList [("a", INT 1)]
     compile g (lN[ SYM "quasiquote",
-                   lN[ SYM "unquote", SYM "a"] ] ) `shouldBeT` [ Ldc (INT 1), Stop ]
+                   lN[ SYM "unquote", SYM "a"] ] ) `shouldBeT` [ Ldg "a", Stop ]
 
   describe "quasiquote" $
-    it "lambda" $ do 
+    it "unquote to Ldg2" $ do 
     g <- H.fromList [("b", lN[ SYM "a", SYM "b", SYM "c"] )]
     compile g (lN[ SYM "quasiquote",
-                   lN[ SYM "unquote", SYM "b"] ] ) `shouldBeT`[ Ldc (lN[ SYM "a",
-                                                                         SYM "b",
-                                                                         SYM "c"]), Stop ]
+                   lN[ SYM "unquote", SYM "b"] ] ) `shouldBeT`[ Ldg "b", Stop ]
+                                                                    
+                                                                    
   describe "quasiquote" $
-    it "lambda" $ do 
+    it "list with no unquote" $ do 
     g <- H.new    
     compile g (lN[ SYM "quasiquote",
                    lN[SYM "a", SYM "b",SYM "c"] ] ) `shouldBeT`
