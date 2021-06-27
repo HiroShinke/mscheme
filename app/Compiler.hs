@@ -152,9 +152,9 @@ translatorUnquote n env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) cs = do
 
 translatorUnquoteSplicing :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
 translatorUnquoteSplicing 0 env (CELL (CELL (SYM "unquote-splicing") (CELL x NIL)) xs) cs = do
-  x' <- eval' env x
+  x' <- comp env x []
   xs' <- translator 0 env xs []
-  return $ appendCode [Ldc x'] xs' ++ cs
+  return $ appendCode x' xs' ++ cs
     
 translatorUnquoteSplicing n env (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) cs = do
   e' <- translatorSub env unquoteSplicing e n (-1) []
@@ -173,17 +173,20 @@ translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) cs = do
   debugPrint $ "translatorAtom env=" ++ (show env)
   comp env e cs
   
-translatorAtom 1 env (CELL (SYM "unquote") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
-  e' <- eval' env e
-  return $ consCode [Ldc unquote] [Ldc e'] ++ cs
+translatorAtom 1 env (CELL (SYM "unquote")
+                      (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
+  cs' <- comp env e []
+  return $ consCode [Ldc (SYM "unquote")] cs' ++ cs
 
 translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) cs = 
   translatorSub env unquote e n (-1) cs
 translatorAtom 0 env (CELL (SYM "unquote-splicing") _) cs =
   throwE $ strMsg "invalid unquote-splicing form"
-translatorAtom 1 env (CELL (SYM "unquote-splicing") (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
-  e' <- eval' env e
-  return $ consCode [Ldc unquoteSplicing] [Ldc e'] ++ cs
+translatorAtom 1 env (CELL (SYM "unquote-splicing")
+                      (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) NIL)) cs = do
+  cs' <- comp env e []
+  return $ consCode [Ldc (SYM "unquote-splicing")] cs' ++ cs
+
 translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) cs =
   translatorSub env unquoteSplicing e n (-1) cs
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) cs =
@@ -197,10 +200,6 @@ translatorAtom n env (CELL e xs) cs = do
   return $ consCode [Ldc e] xs' ++ cs
 
 ---- helper function
-eval' :: Env' -> SExpr -> Scm SExpr
-eval' env@(g,e) x = do
-  cs' <- comp env x [Stop]
-  S.exec g [] e cs' []
 
 consCode :: [Code] -> [Code] -> [Code]
 consCode cs1 cs2 = cs1 ++ cs2 ++ [Args 2, Ldc (PRIM' F.cons), App]
