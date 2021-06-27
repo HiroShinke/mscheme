@@ -13,7 +13,7 @@ import System.IO
 import Error
 import qualified SecdFuncs as F
 
-debugPrintOn = False
+debugPrintOn = True
 
 debugPrint :: String -> Scm ()
 debugPrint msg = if debugPrintOn
@@ -45,6 +45,8 @@ comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs = do
   let ec = [Ldc NIL, Join]
   comp env pred (Sel tc ec : cs)
 comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs = do
+  debugPrint $ "comp lambda: args=" ++ (show args)
+  debugPrint $ "comp lambda: body=" ++ (show body)  
   code <- compBody (g,(args:e)) body [Rtn]
   return $ Ldf code : cs
 comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
@@ -58,11 +60,12 @@ comp env@(g,e) (CELL func@(SYM sym) args) cs = do
   x <- liftIO $ H.lookup g sym
   case x of
     Just (MACR' code e) -> do
-      debugPrint $ "xxxxx: code=" ++ (show code)
-      debugPrint $ "xxxxx: e=" ++ (show e)
-      debugPrint $ "args: "  ++ (show args)
+      debugPrint $ "apply macro: sym=" ++ sym
+      debugPrint $ "apply macro: code=" ++ (show code)
+      debugPrint $ "apply macro: e=" ++ (show e)
+      debugPrint $ "apply macro: args="  ++ (show args)
       args' <- S.exec g [] (args:e) code [Cont3 [] [] [Stop]]
-      debugPrint $ "args': "  ++ (show args')
+      debugPrint $ "apply macro: args'="  ++ (show args')
       comp env args' cs
     Just _ -> comp' env (CELL func args) cs
     Nothing -> comp' env (CELL func args) cs
