@@ -65,8 +65,8 @@ comp env (CELL (SYM "call/cc") (CELL e NIL)) cs = do
   cs' <- comp env e (App:cs)
   return $ [Ldct cs, Args 1] ++ cs'
 comp env (CELL (SYM "apply") (CELL func args)) cs = do
-  func' <- comp env func (App:cs) 
-  compArguments env args (ArgsAp (sExpLength args):func')
+  cs' <- comp env func (App:cs) 
+  compArguments env args (ArgsAp (sExpLength args):cs')
   
 comp env@(g,e) (CELL func@(SYM sym) args) cs = do
   x <- liftIO $ H.lookup g sym
