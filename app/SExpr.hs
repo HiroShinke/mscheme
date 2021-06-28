@@ -113,6 +113,7 @@ data Code = Ld (Int,Int)
           | Ldf [Code]
           | Ldct [Code]
           | Args Int
+          | ArgsAp Int
           | App
           | Rtn
           | Sel [Code] [Code]

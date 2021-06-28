@@ -40,6 +40,15 @@ exec g s e (Ldg sym:c) d = do
 exec g s e (Ldf code: c) d = exec g (CLOS' code e:s) e c d
 exec g s e (Args n: c) d = exec g (vs:s') e c d where vs = listToCell(reverse $ take n s)
                                                       s' = drop n s
+exec g s e (ArgsAp n: c) d = exec g (vs:s') e c d
+  where vs = consOnLast $ listToCell (reverse $ take n s)
+        s' = drop n s
+        consOnLast (CELL xs NIL) = copySExp xs
+        consOnLast (CELL x xs) = CELL x (consOnLast xs) 
+        consOnLast _           = error "bad args"
+        copySExp   (CELL x xs) = CELL x (copySExp xs) 
+        copySExp           NIL = NIL
+
 exec g (CLOS' code e':vs:s) e (App:c) d = exec g [] (vs:e') code (Cont3 s e c:d)
 exec g (v:s) e (Rtn:c) ((Cont3 s' e' c'):d) = exec g (v:s') e' c' d
 exec g (PRIM' func:v:s) e (App:c) d = do
