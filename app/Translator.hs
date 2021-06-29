@@ -6,6 +6,7 @@ import Control.Monad.Trans.Except
 import Error
 import qualified SecdFuncs as F
 
+-- comp is Compiler.comp passed as argument
 
 translator :: Int -> CompilerProc -> CompilerProc
 translator n comp env ls@(CELL (CELL _ _) _) cs = translatorList n comp env ls cs
