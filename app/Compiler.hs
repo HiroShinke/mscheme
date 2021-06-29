@@ -20,12 +20,15 @@ debugPrint msg = if debugPrintOn
                  then liftIO $ putStrLn $ msg
                  else return ()
 
+type CompilerProc = Env' -> SExpr -> [Code] -> Scm [Code]
+                      
+
 --- compile
 
 compile :: GEnv -> SExpr -> Scm [Code]
 compile g expr = comp (g,[]) expr [Stop]
 
-comp :: Env' -> SExpr -> [Code] -> Scm [Code]
+comp :: CompilerProc
 comp env v@NIL        cs = return $ Ldc v : cs
 comp env v@(INT n)    cs = return $ Ldc v : cs
 comp env v@(STR n)    cs = return $ Ldc v : cs
@@ -120,7 +123,7 @@ sExpLength :: SExpr -> Int
 sExpLength (CELL h t) = 1 + sExpLength t
 sExpLength NIL = 0
 
-translator :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translator :: Int -> CompilerProc
 translator n env ls@(CELL (CELL _ _) _) cs = translatorList n env ls cs
 translator n env ls@(CELL _ _) cs = translatorAtom n env ls cs
 translator n env e cs = do
@@ -129,7 +132,7 @@ translator n env e cs = do
   return $ Ldc e : cs
 
 
-translatorList :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorList :: Int -> CompilerProc
 translatorList n env ls@(CELL (CELL (SYM "unquote") _) _) cs =
   translatorUnquote n env ls cs
 translatorList n env ls@(CELL (CELL (SYM "unquote-splicing") _) _) cs =
@@ -144,40 +147,40 @@ translatorList n env (CELL x xs) cs = do
   return $ (consCode c' cs') ++ cs
 translatorList _ _ _ _ = throwE $ strMsg "shouldn't come here"
 
-translatorSub :: Env' -> SExpr -> SExpr -> Int -> Int -> [Code] -> Scm [Code]
-translatorSub env sym e n succ cs = do
+translatorSub :: SExpr -> Int -> Int -> CompilerProc
+translatorSub sym n succ env e cs = do
   cs' <- translator (n + succ) env e []
   return $ consCode [Ldc sym] (consCode cs' [Ldc NIL]) ++ cs
 
-translatorUnquote :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorUnquote :: Int -> CompilerProc
 translatorUnquote 0 env (CELL (CELL (SYM "unquote") (CELL x NIL)) xs) cs = do
   x' <- comp env x []
   xs' <- translator 0 env xs []
   return $ consCode x' xs' ++ cs
 
 translatorUnquote n env (CELL (CELL (SYM "unquote") (CELL e NIL)) xs) cs = do
-  c' <- translatorSub env unquote e n (-1) []
+  c' <- translatorSub unquote n (-1) env e []
   cs' <- translator n env xs []
   return $ consCode c' cs' ++ cs
 
-translatorUnquoteSplicing :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorUnquoteSplicing :: Int -> CompilerProc
 translatorUnquoteSplicing 0 env (CELL (CELL (SYM "unquote-splicing") (CELL x NIL)) xs) cs = do
   x' <- comp env x []
   xs' <- translator 0 env xs []
   return $ appendCode x' xs' ++ cs
     
 translatorUnquoteSplicing n env (CELL (CELL (SYM "unquote-splicing") (CELL e NIL)) xs) cs = do
-  e' <- translatorSub env unquoteSplicing e n (-1) []
+  e' <- translatorSub unquoteSplicing n (-1) env e []
   xs' <- translator n env xs []
   return $ consCode e' xs' ++ cs
 
-translatorQuasiquote :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorQuasiquote :: Int -> CompilerProc
 translatorQuasiquote n env (CELL (CELL (SYM "quasiquote") (CELL e NIL)) xs) cs = do
-  e' <- translatorSub env quasiquote e n 1 []
+  e' <- translatorSub quasiquote n 1 env e []
   xs' <- translator n env xs []
   return $ consCode e' xs' ++ cs
 
-translatorAtom :: Int -> Env' -> SExpr -> [Code] -> Scm [Code]
+translatorAtom :: Int -> CompilerProc
 translatorAtom 0 env (CELL (SYM "unquote") (CELL e NIL)) cs = do
   debugPrint $ "translatorAtom e=" ++ (show e)
   debugPrint $ "translatorAtom env=" ++ (show env)
@@ -189,7 +192,7 @@ translatorAtom 1 env (CELL (SYM "unquote")
   return $ consCode [Ldc (SYM "unquote")] cs' ++ cs
 
 translatorAtom n env (CELL (SYM "unquote") (CELL e NIL)) cs = 
-  translatorSub env unquote e n (-1) cs
+  translatorSub unquote n (-1) env e cs
 translatorAtom 0 env (CELL (SYM "unquote-splicing") _) cs =
   throwE $ strMsg "invalid unquote-splicing form"
 translatorAtom 1 env (CELL (SYM "unquote-splicing")
@@ -198,9 +201,9 @@ translatorAtom 1 env (CELL (SYM "unquote-splicing")
   return $ consCode [Ldc (SYM "unquote-splicing")] cs' ++ cs
 
 translatorAtom  n env (CELL (SYM "unquote-splicing") (CELL e NIL)) cs =
-  translatorSub env unquoteSplicing e n (-1) cs
+  translatorSub unquoteSplicing n (-1) env e cs
 translatorAtom n env (CELL (SYM "quasiquote") (CELL e NIL)) cs =
-  translatorSub env quasiquote e n 1 cs
+  translatorSub quasiquote n 1 env e cs
 translatorAtom n env (CELL e xs) cs = do
   debugPrint $ "translatorAtom.n: env=" ++ (show env)
   debugPrint $ "translatorAtom.n: e=" ++ (show e)
