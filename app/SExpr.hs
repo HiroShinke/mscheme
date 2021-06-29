@@ -4,6 +4,8 @@ module SExpr where
 
 import Data.IORef
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 import Error
 
 import qualified Data.HashTable.IO as H
@@ -130,4 +132,12 @@ data Code = Ld (Int,Int)
 true  = SYM "true"
 false = SYM "false"
 
+debugPrintOn = False
+
+debugPrint :: String -> Scm ()
+debugPrint msg = if debugPrintOn
+                 then liftIO $ putStrLn $ msg
+                 else return ()
+
+type CompilerProc = Env' -> SExpr -> [Code] -> Scm [Code]
 
