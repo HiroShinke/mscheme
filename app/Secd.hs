@@ -62,8 +62,8 @@ exec g (CONT (Cont3 s' e' c') d':((CELL v vs):s)) e (App:c) d  = exec g (v:s') e
 exec g (CONT (Cont3 s' e' c') d':((CELL v vs):s)) e (TApp:c) d = exec g (v:s') e' c' d'
 
   
-exec g (BOOL b:s) e (Sel ct cf:c) d = if b then exec g s e ct (Cont1 c:d)
-                                      else exec g s e cf (Cont1 c:d)
+exec g (BOOL b:s) e (Sel ct cf:c) d  = if b then exec g s e ct (Cont1 c:d)
+                                       else exec g s e cf (Cont1 c:d)
 exec g (BOOL b:s) e (Selr ct cf:c) d = if b then exec g s e ct d
                                        else exec g s e cf d
 exec g s e (Join:[]) (Cont1 c:d) = exec g s e c d
