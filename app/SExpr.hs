@@ -117,8 +117,10 @@ data Code = Ld (Int,Int)
           | Args Int
           | ArgsAp Int
           | App
+          | TApp
           | Rtn
           | Sel [Code] [Code]
+          | Selr [Code] [Code]
           | Join
           | Pop
           | Def String
@@ -139,5 +141,6 @@ debugPrint msg = if debugPrintOn
                  then liftIO $ putStrLn $ msg
                  else return ()
 
-type CompilerProc = Env' -> SExpr -> [Code] -> Scm [Code]
-
+type CompilerProc   = Env' -> SExpr -> [Code] -> Bool -> Scm [Code]
+type CompilerProc'  = Env' -> SExpr -> [Code] -> Scm [Code]
+type TranslatorProc = Env' -> SExpr -> [Code] -> Scm [Code]

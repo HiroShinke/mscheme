@@ -17,52 +17,64 @@ import Translator
 --- compile
 
 compile :: GEnv -> SExpr -> Scm [Code]
-compile g expr = comp (g,[]) expr [Stop]
+compile g expr = comp (g,[]) expr [Stop] False
 
 comp :: CompilerProc
-comp env v@NIL        cs = return $ Ldc v : cs
-comp env v@(INT n)    cs = return $ Ldc v : cs
-comp env v@(STR n)    cs = return $ Ldc v : cs
-comp env v@(BOOL n)   cs = return $ Ldc v : cs
-comp (g,e) v@(SYM name) cs = let pos = findPos name e
+comp env v@NIL        cs tail = return $ Ldc v : cs
+comp env v@(INT n)    cs tail = return $ Ldc v : cs
+comp env v@(STR n)    cs tail = return $ Ldc v : cs
+comp env v@(BOOL n)   cs tail = return $ Ldc v : cs
+comp (g,e) v@(SYM name) cs tail = let pos = findPos name e
                              in do
   debugPrint $ "comp sym: sym=" ++ name
   debugPrint $ "comp sym: e=" ++ (show e)
   case pos of
     Just (i,j) -> return $ Ld (i,j) :cs
     Nothing    -> return $ Ldg name : cs
-comp env (CELL (SYM "quote") (CELL e NIL) ) cs  = return $ Ldc e : cs
-comp env (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) cs = do
-  tc <- comp env tb [Join]
-  ec <- comp env eb [Join]
-  comp env pred (Sel tc ec : cs)
-comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs = do
-  tc <- comp env tb [Join]
+comp env (CELL (SYM "quote") (CELL e NIL) ) cs  tail = return $ Ldc e : cs
+comp env (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) cs tail = if tail
+  then do
+  tc <- comp env tb [Rtn] True
+  ec <- comp env eb [Rtn] True
+  comp env pred (Selr tc ec : cs) False
+  else do
+  tc <- comp env tb [Join] False
+  ec <- comp env eb [Join] False
+  comp env pred (Sel tc ec : cs) False
+  
+comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs tail = if tail
+  then do
+  tc <- comp env tb [Rtn] True
+  let ec = [Ldc NIL, Rtn]
+  comp env pred (Sel tc ec : cs) False
+  else do
+  tc <- comp env tb [Join] False
   let ec = [Ldc NIL, Join]
-  comp env pred (Sel tc ec : cs)
-comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs = do
+  comp env pred (Sel tc ec : cs) False
+  
+comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs tail = do
   debugPrint $ "comp lambda: args=" ++ (show args)
   debugPrint $ "comp lambda: body=" ++ (show body)  
   code <- compBody (g,(args:e)) body [Rtn]
   return $ Ldf code : cs
-comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs =
-  comp env e (Def n : cs)
-comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs =
-  comp env e (Defm n : cs)
-comp env (CELL (SYM "quasiquote") (CELL e NIL) ) cs =
+comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs tail =
+  comp env e (Def n : cs) False
+comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs tail =
+  comp env e (Defm n : cs) False
+comp env (CELL (SYM "quasiquote") (CELL e NIL) ) cs tail =
   translator 0 comp env e cs
-comp env (CELL (SYM "unquote") (CELL e NIL) ) cs =
+comp env (CELL (SYM "unquote") (CELL e NIL) ) cs tail =
   throwE $ strMsg "unquote appeared outside quasiquote"
-comp env (CELL (SYM "unquote-splicing") (CELL e NIL) ) cs =
+comp env (CELL (SYM "unquote-splicing") (CELL e NIL) ) cs tail =
   throwE $ strMsg "unquote-splicing appeared outside quasiquote"
-comp env (CELL (SYM "call/cc") (CELL e NIL)) cs = do
-  cs' <- comp env e (App:cs)
+comp env (CELL (SYM "call/cc") (CELL e NIL)) cs tail = do
+  cs' <- comp env e (App:cs) False
   return $ [Ldct cs, Args 1] ++ cs'
-comp env (CELL (SYM "apply") (CELL func args)) cs = do
-  cs' <- comp env func (App:cs) 
+comp env (CELL (SYM "apply") (CELL func args)) cs tail = do
+  cs' <- comp env func (App:cs) False
   compArguments env args (ArgsAp (sExpLength args):cs')
   
-comp env@(g,e) (CELL func@(SYM sym) args) cs = do
+comp env@(g,e) (CELL func@(SYM sym) args) cs tail = do
   x <- liftIO $ H.lookup g sym
   case x of
     Just (MACR' code e) -> do
@@ -72,25 +84,27 @@ comp env@(g,e) (CELL func@(SYM sym) args) cs = do
       debugPrint $ "apply macro: args="  ++ (show args)
       args' <- S.exec g [] (args:e) code [Cont3 [] [] [Stop]]
       debugPrint $ "apply macro: args'="  ++ (show args')
-      comp env args' cs
-    Just _ -> comp' env (CELL func args) cs
-    Nothing -> comp' env (CELL func args) cs
+      comp env args' cs False
+    Just _ -> comp' env (CELL func args) cs tail
+    Nothing -> comp' env (CELL func args) cs tail
 
-comp env (CELL func args) cs = comp' env (CELL func args) cs
+comp env (CELL func args) cs tail = comp' env (CELL func args) cs tail
 
-comp' env (CELL func args) cs = do
-  cs' <- comp env func (App:cs)
+comp' env (CELL func args) cs tail = do
+  cs' <- comp env func (if tail then TApp:cs else App:cs) False
   compArguments env args (Args (sExpLength args):cs')
 
+compArguments :: CompilerProc'
 compArguments env (CELL a as) cs = do
   cs' <- compArguments env as cs
-  comp env a cs'
+  comp env a cs' False
 compArguments _  NIL cs = return $ cs
 
-compBody env (CELL e NIL) cs = comp env e cs
-compBody env (CELL e es) cs  = do
+compBody :: CompilerProc'
+compBody env (CELL e NIL) cs = comp env e cs True
+compBody env (CELL e es) cs = do
   cs' <- compBody env es cs
-  comp env e (Pop : cs')
+  comp env e (Pop : cs') False
 
 
 findPos :: String -> Frame -> Maybe (Int,Int)

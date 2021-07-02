@@ -99,7 +99,7 @@ spec = do
                                                          Args 2,
                                                          Ldf [ Ld (0,0), Ld (0,1), Args 2,
                                                                Ldg "+",
-                                                               App,
+                                                               TApp,
                                                                Rtn ],
                                                          App,
                                                          Stop ]
@@ -310,7 +310,7 @@ spec = do
                                       lN[ SYM "k" ],
                                       lN[ SYM "k", INT 1] ] ]) `shouldBeT`
       [ Ldct [Stop], Args 1, Ldf [ Ldc (INT 1), Args 1,
-                                   Ld (0,0), App, Rtn], App, Stop ]
+                                   Ld (0,0), TApp, Rtn], App, Stop ]
       
     
   -- (call/cc (lambda (k) (k 1)))
