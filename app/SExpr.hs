@@ -62,6 +62,7 @@ instance Show SExpr where
   show (REAL x)   = show x
   show (SYM x)    = x
   show (STR x)    = show x
+  show (BOOL b)   = show b
   show NIL        = "()"
   show (SYNT _)   = "<syntax>"
   show (PRIM _)   = "<primitive>"
@@ -131,8 +132,8 @@ data Code = Ld (Int,Int)
 
 
 -- 真偽値
-true  = SYM "true"
-false = SYM "false"
+true  = BOOL True
+false = BOOL False
 
 debugPrintOn = False
 
