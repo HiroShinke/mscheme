@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, action_test ]
   pull_request:
-    branches: [ main, action_test ]
+    branches: [ main ]
 
 jobs:
   stack:
@@ -19,8 +19,8 @@ jobs:
             resolver: 'lts-16.11'
           - ghc: '8.6.5'
             resolver: 'lts-14.27'
-          - ghc: '8.4.4'
-            resolver: 'lts-12.26'
+        ##  - ghc: '8.4.4'
+        ##    resolver: 'lts-12.26'
         ## include:
         ##   - os: macOS-latest
         ##     flags: '--flag greskell:-hint-test'
