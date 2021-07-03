@@ -61,6 +61,11 @@ shouldBeEvaluated s v = do
                                 v <- S.exec g [] [] code [] 
                                 iter g xs' (v:accm)
 
+lN :: [SExpr] -> SExpr
+lN (x:xs) = (CELL x (lN xs))
+lN []     = NIL
+
+
 spec :: Spec
 spec = do
   describe "Basics" $ do
@@ -110,6 +115,29 @@ spec = do
         ( "(define-macro minus (lambda (n m) (- n m))) " ++
           "(minus 1 2)" ) `shouldBeEvaluated` (INT (-1))
         
+  describe "primitives" $ do
+      it "eq1" $ 
+        "(eq? 1 2)" `shouldBeEvaluated` (BOOL False)
+      it "eq2" $ 
+        "(eq? 1 1)" `shouldBeEvaluated` (BOOL True)
+      it "eq3" $ 
+        "(eq? 'a 'a)" `shouldBeEvaluated` (BOOL True)
+      it "eq4" $ 
+        "(eq? '(a b) '(a b))" `shouldBeEvaluated` (BOOL True)
+      it "pair?1" $ 
+        "(pair? 'a)" `shouldBeEvaluated` (BOOL False)
+      it "pair?2" $ 
+        "(pair? '(a b))" `shouldBeEvaluated` (BOOL True)
+      it "pair?3" $ 
+        "(pair? '(a . b))" `shouldBeEvaluated` (BOOL True)
+      it "car1" $ 
+        "(car '(a b))" `shouldBeEvaluated` (SYM "a")
+      it "cdr1" $ 
+        "(cdr '(a b))" `shouldBeEvaluated` lN[ SYM "b" ]
+      it "cons1" $ 
+        "(cons 'a '(b c))" `shouldBeEvaluated` lN[ SYM "a", SYM "b", SYM "c" ]
+      it "cons2" $ 
+        "(cons 'a 'b)" `shouldBeEvaluated` (CELL (SYM "a") (SYM "b"))
 
 
 
