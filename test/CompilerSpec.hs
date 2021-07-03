@@ -322,6 +322,41 @@ spec = do
                                                                  lN[ SYM "k", INT 1] ] ])
     (Right v) <- runExceptT $ exec g [] [] cs []
     v `shouldBe` INT 1
+
+  -- tail position
+  describe "tail position1" $
+    it "tail" $ do 
+    let lmd = lN[ SYM "lambda", lN [], lN[SYM "foo", lN[ SYM "goo"]] ]
+    g <- H.new    
+    compile g lmd `shouldBeT` [Ldf [Args 0,Ldg "goo", App, 
+                                    Args 1,Ldg "foo", TApp, Rtn], Stop]
+  describe "tail position2" $
+    it "no tail position " $ do 
+    let lmd  = lN[ SYM "foo", lN[ SYM "goo"] ]
+    let lmd2 = lN[ SYM "if", BOOL True, lmd, lmd ]
+    g <- H.new    
+    compile g lmd2 `shouldBeT` [Ldc (BOOL True),
+                                Sel [Args 0,Ldg "goo",App,Args 1,Ldg "foo",App,Join]
+                                    [Args 0,Ldg "goo",App,Args 1,Ldg "foo",App,Join],
+                                Stop
+                               ]
+  describe "tail position2" $
+    it "tail position " $ do 
+    let lmd  = lN[ SYM "foo", lN[ SYM "goo"] ]
+    let lmd2 = lN[ SYM "lambda", lN[], lN[ SYM "if", BOOL True, lmd, lmd ] ]
+    g <- H.new    
+    compile g lmd2 `shouldBeT` [Ldf [Ldc (BOOL True),
+                                     Selr
+                                      [Args 0,Ldg "goo",App,Args 1,Ldg "foo",TApp,Rtn]
+                                      [Args 0,Ldg "goo",App,Args 1,Ldg "foo",TApp,Rtn],
+                                     Rtn
+                                      ],
+                                Stop
+                               ]
+
+      
+
+  
     
 
 
