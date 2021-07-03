@@ -78,7 +78,7 @@ spec = do
   let addFunc _ (CELL (INT x) (CELL (INT y) _)) = return $ INT (x+y)
 
   describe "App" $ do
-    describe "PRIM'itive" $
+    describe "Primitive" $
       it "case 1" $ do
       g <- H.new
       let s = [PRIM' addFunc, listToCell [INT 3, INT 5], STR "xxx"]
@@ -87,7 +87,7 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
-    describe "PRIM'itive2" $
+    describe "Primitive2" $
       it "case 2" $ do
       g <- H.new
       let s = [listToCell [INT 3, INT 5], STR "xxx"]
@@ -96,7 +96,7 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
-    describe "PRIM'itive3" $
+    describe "Primitive3" $
       it "case 3" $ do
       g <- H.new
       let s = [STR "xxx"]
@@ -105,7 +105,7 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
-    describe "PRIM'itive4" $
+    describe "Primitive4" $
       it "case 4" $ do
       g <- H.fromList [("add", PRIM' addFunc)]
       let s = [STR "xxx"]
@@ -157,6 +157,75 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (SYM "a")
 
+  describe "TApp" $ do
+    describe "Primitive" $
+      it "same as App for primitives 1" $ do
+      g <- H.new
+      let s = [PRIM' addFunc, listToCell [INT 3, INT 5], STR "xxx"]
+      let e = []
+      let c = [TApp,Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
+
+    describe "Primitive2" $
+      it "same as App for primitives 2" $ do
+      g <- H.new
+      let s = [listToCell [INT 3, INT 5], STR "xxx"]
+      let e = []
+      let c = [Ldc (PRIM' addFunc),TApp,Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
+
+    describe "Primitive3" $
+      it "same as App for primitives 3" $ do
+      g <- H.new
+      let s = [STR "xxx"]
+      let e = []
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldc (PRIM' addFunc),TApp,Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
+
+    describe "Primitive4" $
+      it "same as App for primitives 4" $ do
+      g <- H.fromList [("add", PRIM' addFunc)]
+      let s = [STR "xxx"]
+      let e = []
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldg "add",TApp,Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
+
+    describe "Closure1" $
+      it "case 1" $ do
+      let closEnv = [NIL]
+      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldc (PRIM' addFunc), TApp, Rtn ]
+      let clos = CLOS' closCodes closEnv
+      g <- H.new
+      let s = [clos, listToCell [INT 3, INT 5], STR "xxx"]
+      let e = []
+      let c = [App,Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
+
+    describe "Closure2" $
+      it "case 2" $ do
+      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", TApp, Rtn ]
+      g <- H.fromList [("add", PRIM' addFunc)]
+      let s = []
+      let e = []
+      let c = [Ldc (INT 3), Ldc (INT 5), Args 2, Ldf closCodes, App,Stop]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
+
+    describe "UserFunction" $
+      it "case 1" $ do
+      let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", TApp, Rtn ]
+      g <- H.fromList [("add", PRIM' addFunc)]
+      let s = []
+      let e = []
+      let c = [Ldf closCodes, Def "userAdd",
+               Ldc (INT 3), Ldc (INT 5), Args 2, Ldg "userAdd", App, Stop ]
+      let d = []
+      exec g s e c d `shouldBeT` (INT 8)
 
   describe "Pop" $ 
     it "case 1" $ do
@@ -195,6 +264,24 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 2)
 
+  describe "Selr&Rtn" $ do
+    describe "then-block" $
+      it "case 1" $ do
+      g <- H.new
+      let s = []
+      let e = []
+      let c = [Ldc (BOOL True), Selr [Ldc (INT 1), Rtn] [Ldc (INT 2), Rtn], Rtn]
+      let d = [Cont3 [] [] [Stop]]
+      exec g s e c d `shouldBeT` (INT 1)
+
+    describe "else-block" $
+      it "case 2" $ do
+      g <- H.new
+      let s = []
+      let e = []
+      let c = [Ldc (BOOL False), Selr [Ldc (INT 1), Rtn] [Ldc (INT 2), Rtn], Rtn]
+      let d = [Cont3 [] [] [Stop]]
+      exec g s e c d `shouldBeT` (INT 2)
 
     let cscont = [Ldc (SYM "c"), Args 3, Ldg "list", App, Stop]
     let cs = [Ldc (SYM "a"), Ldct cscont, Args 1,
