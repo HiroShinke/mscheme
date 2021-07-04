@@ -2,6 +2,8 @@
 
 [![Haskell CI](https://github.com/HiroShinke/mscheme/actions/workflows/haskell.yml/badge.svg)](https://github.com/HiroShinke/mscheme/actions/workflows/haskell.yml)
 
+A project for scheme interpreters and compilers implemented in Haskell Language.
+
 This project is based on Makoto Hiroi's mscheme.
 
 Original version is published on 
