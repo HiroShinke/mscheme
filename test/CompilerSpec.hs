@@ -60,6 +60,7 @@ spec = do
 
   let lmd = lN[ SYM "lambda", lN [ SYM "n" ], SYM "n" ]
 
+
   describe "test case" $
     it "lambda" $ do
     g <- H.new    
@@ -73,7 +74,24 @@ spec = do
                                                  Ldf [ Ld (0,0), Rtn ],
                                                  App,
                                                  Stop ]
-    
+
+  describe "lambda" $ do
+    it "list parameter 1" $ do
+      g <- H.new
+      let lmd = lN[ SYM "lambda", SYM "n", SYM "n" ]
+      compile g lmd `shouldBeT` [ Ldf [ Ld (0,-1), Rtn ], Stop ]
+      
+    it "list parameter 2" $ do
+      g <- H.new
+      let lmd = lN[ SYM "lambda", (CELL (SYM "n") (SYM "m")), SYM "m" ]
+      compile g lmd `shouldBeT` [ Ldf [ Ld (0,-2), Rtn ], Stop ]
+
+    it "list parameter 3" $ do
+      g <- H.new
+      let lmd = lN[ SYM "lambda", (CELL (SYM "x") (CELL (SYM "n") (SYM "m"))), SYM "m" ]
+      compile g lmd `shouldBeT` [ Ldf [ Ld (0,-3), Rtn ], Stop ]
+
+
   let lmd2 = lN[ SYM "lambda", lN [], INT 1, INT 2, INT 3, INT 4, INT 5 ]
   describe "test case" $
     it "lambda" $ do 

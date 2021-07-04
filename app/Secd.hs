@@ -19,10 +19,13 @@ trace s x = unsafePerformIO ( do
             
 getLVar :: Frame -> Int -> Int -> SExpr
 getLVar e i j = let frm = e !! i
-                in  getItem frm j
+                in  if j < 0 then getItem' frm (-j) else getItem frm j
   where getItem (CELL x xs) 0 = x
         getItem (CELL x xs) n = getItem xs (n-1)
-        getItem  NIL n        = error "can't come here"
+        getItem  NIL n        = error "getItem: can't come here"
+        getItem' v 1 = v
+        getItem' (CELL x xs) n = getItem' xs (n-1)
+        getItem' _ _           = error "getItem': can't come here"
 
 getGVar :: GEnv -> String -> Scm SExpr
 getGVar g key = do

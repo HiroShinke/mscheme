@@ -117,12 +117,8 @@ findPos n xs = findFrame xs 0
     findFrame [] _  =   fail "not found"
     findCol :: SExpr -> Int -> Maybe Int
     findCol (CELL (SYM m) xs) j = if n == m then return j else findCol xs (j+1)
+    findCol (SYM m) j = if n == m then return (-(j+1)) else fail "not found"
     findCol NIL _ = fail "not found"
-
-
-cellToEnv :: SExpr -> [SExpr]
-cellToEnv (CELL (SYM n) rest) = SYM n : cellToEnv rest
-cellToEnv NIL = []
 
 sExpLength :: SExpr -> Int
 sExpLength (CELL h t) = 1 + sExpLength t

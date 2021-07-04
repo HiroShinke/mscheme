@@ -11,8 +11,8 @@ import Control.Monad.IO.Class
 
 import Reader
 import Compiler
-import Error
-import SExpr
+import Error 
+import SExpr hiding (debugPrint)
 import SecdFuncs
 
 import Test.Hspec (Spec, describe, it, shouldBe)
@@ -41,6 +41,9 @@ initGEnv = [("true",   true),
             ("error",  PRIM' error')
            ]
 
+debugPrint s = if False
+               then liftIO $ putStrLn s
+               else return ()
 
 shouldBeEvaluated s v = do
   g <- H.fromList initGEnv
@@ -48,7 +51,7 @@ shouldBeEvaluated s v = do
   case x of
     Right (v':_) -> 
       v' `shouldBe` v
-    Left e -> liftIO $ putStrLn (show e)
+    Left e -> debugPrint (show e)
   where
     iter :: GEnv -> String -> [SExpr] -> Scm [SExpr]
     iter g xs accm = 
@@ -57,7 +60,9 @@ shouldBeEvaluated s v = do
         Left  (ParseErr xs' mes)   -> do
           liftIO $ putStrLn mes
           return []
-        Right (expr, xs') -> do code <- compile g expr
+        Right (expr, xs') -> do debugPrint (show expr)
+                                code <- compile g expr
+                                debugPrint (show code)
                                 v <- S.exec g [] [] code [] 
                                 iter g xs' (v:accm)
 
@@ -104,6 +109,16 @@ spec = do
 \                                 (perm2 (- n 1) (* n a) ))))\
 \        (perm2 10 1)" `shouldBeEvaluated` (INT 3628800)
 
+  describe "function definition" $ do
+      it "list parameter1" $
+        "(define id (lambda n n)) (id 'a 'b 'c)" `shouldBeEvaluated` lN[ SYM "a",
+                                                                          SYM "b",
+                                                                          SYM "c" ] 
+      it "list parameter2" $
+        "(define id (lambda (n . m) m)) (id 'a 'b 'c)" `shouldBeEvaluated` lN[ SYM "b",
+                                                                                SYM "c" ]
+      it "list parameter3" $
+        "(define id (lambda (l m . n) n)) (id 'a 'b 'c)" `shouldBeEvaluated` lN[ SYM "c" ]
 
   describe "macro definition" $ do
       it "id" $ 

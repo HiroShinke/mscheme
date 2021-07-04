@@ -136,6 +136,37 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 8)
 
+    describe "Closure3" $ do
+      it "list parameter 1" $ do
+        let closCodes = [Ld (0,-1), Rtn ]
+        let s = []
+        let e = []
+        let c = [Ldc (INT 1), Ldc (INT 2), Ldc (INT 3),
+                 Args 3, Ldf closCodes, App, Stop]
+        let d = []
+        g <- H.new
+        exec g s e c d `shouldBeT` lN[INT 1, INT 2, INT 3]
+
+      it "list parameter 2" $ do
+        let closCodes = [Ld (0,-2), Rtn ]
+        let s = []
+        let e = []
+        let c = [Ldc (INT 1), Ldc (INT 2), Ldc (INT 3),
+                 Args 3, Ldf closCodes, App, Stop]
+        let d = []
+        g <- H.new
+        exec g s e c d `shouldBeT` lN[INT 2, INT 3]
+
+      it "list parameter 3" $ do
+        let closCodes = [Ld (0,-3), Rtn ]
+        let s = []
+        let e = []
+        let c = [Ldc (INT 1), Ldc (INT 2), Ldc (INT 3),
+                 Args 3, Ldf closCodes, App, Stop]
+        let d = []
+        g <- H.new
+        exec g s e c d `shouldBeT` lN[INT 3]
+
     describe "UserFunction" $
       it "case 1" $ do
       let closCodes = [Ld (0,0), Ld (0,1), Args 2, Ldg "add", App, Rtn ]
