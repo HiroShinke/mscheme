@@ -161,12 +161,11 @@ transPrim f = \e -> do
     v' <- f e'
     liftIO $ itom v'
 
-
-
-                    
-  
-       
-
+transBin :: (I.SExpr -> I.SExpr -> Scm I.SExpr) -> (SExpr -> SExpr -> Scm SExpr)
+transBin f = \x y -> do 
+  x' <- liftIO $ mtoi x
+  let f' = transPrim (f x') 
+  f' y
 
 
 
