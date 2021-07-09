@@ -155,11 +155,15 @@ itom (I.BOOL x) = return (BOOL x)
 itom  I.NIL     = return  NIL
 itom (I.CELL x xs) = CELL <$> (itom x >>= newIORef) <*> (itom xs >>= newIORef )
 
--- prim :: I.SecdFunc ->  SecdFunc
--- prim f = \g e -> do
---   e' <- liftIO $ mtoi e
---   v' <- f g e'
---   liftIO $ itom v'
+transPrim :: I.PrimFunc ->  PrimFunc
+transPrim f = \e -> do
+    e' <- liftIO $ mtoi e
+    v' <- f e'
+    liftIO $ itom v'
+
+
+
+                    
   
        
 
