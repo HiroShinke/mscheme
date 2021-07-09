@@ -3,6 +3,7 @@
 module Mutable.SExpr where
 
 import Data.IORef
+import System.IO.Unsafe
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
@@ -10,6 +11,18 @@ import Error
 
 import qualified Data.HashTable.IO as H
 type HashTable k v = H.CuckooHashTable k v
+
+showIORef :: Show a => IORef a -> String
+showIORef x = unsafePerformIO $ do
+  x' <- readIORef x
+  return $ show x'
+
+contentIORef :: IORef a -> a
+contentIORef x = unsafePerformIO $ readIORef x
+
+equalIORef :: Eq a => IORef a -> IORef a -> Bool
+equalIORef x y = unsafePerformIO $ (==) <$> readIORef x <*> readIORef y
+  
 
 -- S 式の定義
 data SExpr = INT  !Integer
@@ -36,7 +49,7 @@ instance Eq SExpr where
   STR x  == STR y  = x == y
   BOOL x  == BOOL y  = x == y
   NIL    == NIL    = True
-  CELL x xs == CELL y ys = x == y && xs == ys
+  CELL x xs == CELL y ys = x `equalIORef` y && xs `equalIORef` ys
   _      == _      = False
 
 equalExpr :: SExpr -> SExpr -> IO Bool
@@ -71,11 +84,26 @@ instance Show SExpr where
     let xs' = showCell xs
     in "(" ++ xs' ++ ")"
 
-instance Show (IORef SExpr) where
-  show ma = ""
+instance Show a => Show (IORef a) where
+  show ma = showIORef ma
 
-
-showCell xs = ""
+--
+-- S 式の表示
+--
+showCell :: SExpr -> String
+showCell (CELL a d) =
+  show a ++ case (contentIORef d) of
+              NIL      -> ""
+              PRIM _   -> "<primitive>"
+              PRIM' _  -> "<primitive'>"
+              CLOS _ _ -> "<closure>"
+              SYNT _   -> "<syntax>"
+              INT x    -> " . " ++ show x
+              REAL x   -> " . " ++ show x
+              SYM x    -> " . " ++ x
+              STR x    -> " . " ++ show x
+              _        -> " " ++ showCell (contentIORef d)
+showCell xs = show xs
 
 showCellIO (CELL ma md) = do
   a <- readIORef ma

@@ -3,8 +3,9 @@
 module Mutable.Secd where
 
 import System.IO.Unsafe
-import Data.IORef
+import Data.IORef hiding (Eq)
 import Mutable.SExpr
+import qualified SExpr as I
 import qualified Data.HashTable.IO as H
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
@@ -17,7 +18,7 @@ trace s x = unsafePerformIO ( do
                                 putStrLn $ "result " ++ show x
                                 return x
                             )
-            
+
 getLVar :: Frame -> Int -> Int -> IO (IORef SExpr)
 getLVar e i j = do
   let fr = e !! i
@@ -129,6 +130,39 @@ listToCell :: [SExpr] -> IO SExpr
 listToCell (x:xs) = CELL <$> newIORef x <*> (listToCell xs >>= newIORef )
 listToCell []     = return NIL
 
--- cellToList :: SExpr -> [SExpr]
--- cellToList (CELL x xs) = x : (cellToList xs)
--- cellToList  NIL       = []
+cellToList :: SExpr -> IO [SExpr]
+cellToList (CELL x xs) = do
+  xs' <- readIORef xs
+  case xs' of
+    NIL -> (:) <$> readIORef x <*> return []
+    _ -> (:) <$> readIORef x <*> cellToList xs'
+
+mtoi :: SExpr -> IO I.SExpr
+mtoi (INT  x) = return (I.INT  x)
+mtoi (REAL x) = return (I.REAL x)
+mtoi (SYM x)  = return (I.SYM  x)
+mtoi (STR x)  = return (I.STR  x)
+mtoi (BOOL x) = return (I.BOOL x)
+mtoi  NIL     = return  I.NIL
+mtoi (CELL x xs) = I.CELL <$> (readIORef x >>= mtoi) <*> (readIORef xs >>= mtoi)
+
+itom :: I.SExpr -> IO SExpr
+itom (I.INT  x) = return (INT  x)
+itom (I.REAL x) = return (REAL x)
+itom (I.SYM x)  = return (SYM  x)
+itom (I.STR x)  = return (STR  x)
+itom (I.BOOL x) = return (BOOL x)
+itom  I.NIL     = return  NIL
+itom (I.CELL x xs) = CELL <$> (itom x >>= newIORef) <*> (itom xs >>= newIORef )
+
+-- prim :: I.SecdFunc ->  SecdFunc
+-- prim f = \g e -> do
+--   e' <- liftIO $ mtoi e
+--   v' <- f g e'
+--   liftIO $ itom v'
+  
+       
+
+
+
+
