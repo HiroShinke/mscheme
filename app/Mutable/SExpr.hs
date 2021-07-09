@@ -105,22 +105,6 @@ showCell (CELL a d) =
               _        -> " " ++ showCell (contentIORef d)
 showCell xs = show xs
 
-showCellIO (CELL ma md) = do
-  a <- readIORef ma
-  d <- readIORef md
-  (++) <$> showIO a  <*> case d of
-                           NIL      -> return ""
-                           PRIM _   -> return "<primitive>"
-                           PRIM' _  -> return "<primitive'>"
-                           CLOS _ _ -> return "<closure>"
-                           SYNT _   -> return "<syntax>"
-                           INT x    -> return $ " . " ++ show x
-                           REAL x   -> return $ " . " ++ show x
-                           SYM x    -> return $ " . " ++ x
-                           STR x    -> return $ " . " ++ show x
-                           _        -> (++) <$> return " " <*> showCellIO d
-showCellIO xs = showIO xs
-
 
 showIO (INT x)    = return $ show x
 showIO (REAL x)   = return $ show x
@@ -140,19 +124,28 @@ showIO xs         = do
   xs' <- showCellIO xs
   return $ "(" ++ xs' ++ ")"
 
+showCellIO (CELL ma md) = do
+  a <- readIORef ma
+  d <- readIORef md
+  (++) <$> showIO a  <*> case d of
+                           NIL      -> return ""
+                           PRIM _   -> return "<primitive>"
+                           PRIM' _  -> return "<primitive'>"
+                           CLOS _ _ -> return "<closure>"
+                           SYNT _   -> return "<syntax>"
+                           INT x    -> return $ " . " ++ show x
+                           REAL x   -> return $ " . " ++ show x
+                           SYM x    -> return $ " . " ++ x
+                           STR x    -> return $ " . " ++ show x
+                           _        -> (++) <$> return " " <*> showCellIO d
+showCellIO xs = showIO xs
+
+
 
 cons :: SExpr -> SExpr -> IO SExpr
 cons x xs = CELL <$> newIORef x <*> newIORef xs
-  
 
--- Scmエラーの定義
-data ScmError = ScmError String String deriving (Show, Eq)
-
-instance Error ScmError where
-  noMsg    = ScmError "" ""
-  strMsg s = ScmError  "" s
-
-type Scm a    = ExceptT ScmError IO a
+type PrimFunc = SExpr -> Scm SExpr
 type ScmFunc  = Env  -> SExpr -> Scm SExpr
 type SecdFunc = GEnv -> SExpr -> Scm SExpr
 

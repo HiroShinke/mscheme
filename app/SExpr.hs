@@ -74,15 +74,7 @@ instance Show SExpr where
   show (CELL (SYM "unquote-splicing") (CELL e NIL)) = ",@" ++ (show e)
   show xs         = "(" ++ showCell xs ++ ")"
 
-
--- Scmエラーの定義
-data ScmError = ScmError String String deriving (Show, Eq)
-
-instance Error ScmError where
-  noMsg    = ScmError "" ""
-  strMsg s = ScmError  "" s
-
-type Scm a    = ExceptT ScmError IO a
+type PrimFunc = SExpr -> Scm SExpr
 type ScmFunc  = Env  -> SExpr -> Scm SExpr
 type SecdFunc = GEnv -> SExpr -> Scm SExpr
 
