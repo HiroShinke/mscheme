@@ -80,9 +80,15 @@ instance Show SExpr where
   show (PRIM _)   = "<primitive>"
   show (PRIM' _)  = "<primitive'>"
   show (CLOS _ _) = "<closure>"
-  show xs         =
-    let xs' = showCell xs
-    in "(" ++ xs' ++ ")"
+  show v@(CELL x xs) =
+    let x'  = contentIORef x
+        xs' = contentIORef xs
+    in case (x',xs') of
+      (SYM "quote",CELL e es) -> "'" ++ (show (contentIORef e) )
+      (SYM "quasiquote",CELL e es) ->  "`" ++ (show (contentIORef e) )
+      (SYM "unquote",CELL e es) -> "," ++ (show (contentIORef e) )
+      (SYM "unquote-splicing",CELL e es) -> "," ++ (show (contentIORef e) )
+      _  -> "(" ++ (showCell v) ++ ")"
 
 instance Show a => Show (IORef a) where
   show ma = showIORef ma
