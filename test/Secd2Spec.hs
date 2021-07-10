@@ -10,7 +10,7 @@ import Test.Hspec (Spec, describe, it, shouldBe)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
-import qualified SecdFuncs as F
+import qualified Mutable.SecdFuncs as F
 import qualified SExpr as I
 import qualified Data.HashTable.IO as H
 type HashTable k v = H.CuckooHashTable k v
@@ -21,16 +21,6 @@ lN = unsafePerformIO . listToCell
 shouldBeT m v = do
   v' <- runExceptT m
   v' `shouldBe` (Right v)
-
-
-listP :: I.PrimFunc
-listP e = return e
-
-listP' :: PrimFunc
-listP'  = transPrim listP
-
-list' :: SecdFunc
-list' _ e = listP' e
 
 
 spec :: Spec
@@ -341,7 +331,7 @@ spec = do
 
     describe "call/cc" $
       it "save continuation" $ do
-      g <- H.fromList [("list",PRIM' list')]
+      g <- H.fromList [("list",PRIM' F.list')]
       let s = []
       let e = []
       let c = cs
@@ -350,7 +340,7 @@ spec = do
 
     describe "call/cc" $
       it "save continuation" $ do
-      g <- H.fromList [("list",PRIM' list')]
+      g <- H.fromList [("list",PRIM' F.list')]
       let s = []
       let e = []
       let c = cs
