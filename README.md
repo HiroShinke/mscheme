@@ -12,12 +12,13 @@ Original version is published on
 * http://www.nct9.ne.jp/m_hiroi/func/haskell.html
 
 Thanks to Mr. Hiroi.
-These pages has lot of information interesting for me.
+These pages has lot of interesting things for me.
 
 This repository includes the following executables: 
 * mscheme   : interpreter
 * mscheme2  : interpreter(CPS version)
 * mschemec  : compiler and vertual machine
+* mschemec2 : compiler and vertual machine for mutable cells
 
 You can go to the top directory and 
 compile and run tests with next command:
@@ -30,5 +31,6 @@ and run repl with:
 ```shell
 stack exec mscheme
 stack exec mscheme2
-stack exec mchemec
+stack exec mschemec
+stack exec mschemec2
 ```
