@@ -13,7 +13,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 
 import Reader
-import Compiler
+import Mutable.Compiler
 import Error
 import qualified Mutable.SExpr as M
 import qualified Mutable.SecdFuncs as F
@@ -62,9 +62,7 @@ load' g (CELL (STR filename) _ ) = do
         Left  (ParseErr xs' "EOF") -> return True
         Left  (ParseErr xs' mes) -> do liftIO $ putStrLn mes
                                        return False
-        Right (expr, xs') -> do g' <- liftIO $ H.new  --- macro is not supported yet.
-                                code' <- compile g' expr
-                                code  <-liftIO $  mapM S.itomCode code'
+        Right (expr, xs') -> do code <- compile g expr
                                 liftIO $ putStrLn "Code:"
                                 liftIO $ putStrLn (show code)
                                 v <- S.exec g [] [] code []
@@ -76,20 +74,18 @@ load' _ _ = throwE $ strMsg "invalid load form"
 -- read-eval-print-loop
 repl :: M.GEnv -> String -> IO ()
 repl g xs = do
-  g' <- H.new
   putStr "Scm> "
   hFlush stdout
   case readSExpr xs of
     Left  (ParseErr xs' "EOF") -> return ()
     Left  (ParseErr xs' mes) -> do putStrLn mes
                                    repl g $ dropWhile (/= '\n') xs'
-    Right (expr, xs') -> do code <- runExceptT $ compile g' expr
+    Right (expr, xs') -> do code <- runExceptT $ compile g expr
                             putStrLn "Code:"
                             putStrLn (show code)
                             case code of
                               Right cd ->  do
-                                cd' <- mapM S.itomCode cd
-                                v <- runExceptT $ S.exec g [] [] cd' []
+                                v <- runExceptT $ S.exec g [] [] cd []
                                 v' <- mapM S.mtoi v
                                 putStrLn (show v')
                               Left err -> do
