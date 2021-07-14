@@ -52,11 +52,19 @@ exec g s e (Ld (i,j):c) d = do
   v <- liftIO $ getLVar e i j
   v' <- liftIO $ readIORef v
   exec g (v':s) e c d
+exec g (v:s) e (LSet (i,j):c) d = do
+  vref <- liftIO $ getLVar e i j
+  liftIO $ writeIORef vref v
+  exec g (v:s) e c d
     
 exec g s e (Ldc v:c) d = exec g (v:s) e c d
 exec g s e (Ldg sym:c) d = do
   v <- getGVar g sym
   exec g (v:s) e c d
+exec g (v:s) e (GSet sym:c) d = do
+  liftIO $ H.insert g sym v  
+  exec g (v:s) e c d
+  
 exec g s e (Ldf code: c) d = exec g (CLOS' code e:s) e c d
 exec g s e (Args n: c) d = do
   vs <- liftIO $ listToCell (reverse $ take n s)

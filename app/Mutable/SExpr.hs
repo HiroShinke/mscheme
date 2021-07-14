@@ -181,8 +181,10 @@ data Cont = Cont3 Stack Frame [Code]
   deriving Show
 
 data Code = Ld (Int,Int)
+          | LSet (Int,Int)
           | Ldc SExpr
           | Ldg String
+          | GSet String
           | Ldf [Code]
           | Ldct [Code]
           | Args Int
