@@ -198,7 +198,7 @@ data Code = Ld (Int,Int)
           | Defm String
           | Stop
           | Dump
-  deriving Show
+  deriving (Show,Eq)
 
 
 -- 真偽値

@@ -122,7 +122,7 @@ findPos n xs = findFrame xs 0
       case x of
         Just j -> return $ Just (i,j)
         Nothing -> findFrame fs (i + 1)
-    findFrame [] _  =   fail "not found"
+    findFrame [] _  =   return Nothing
     findCol :: IORef M.SExpr -> Int -> IO (Maybe Int)
     findCol refx j = do
       x <- readIORef refx

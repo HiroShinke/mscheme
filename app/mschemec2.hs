@@ -42,7 +42,8 @@ initGEnv = [("true",   M.true),
             ("cons",   M.PRIM' F.cons),
             ("list",   M.PRIM' F.list'),
             ("append", M.PRIM' F.append'),
-            ("error",  M.PRIM' F.error')
+            ("error",  M.PRIM' F.error'),
+            ("load",   M.PRIM' load)
            ]
 
 
