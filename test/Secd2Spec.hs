@@ -41,6 +41,16 @@ spec = do
     let d = []
     exec g s e c d `shouldBeT` STR "b"
 
+  describe "LSet" $
+    it "case 1" $ do
+    g <- H.new
+    let s = [STR "c"]
+    f' <- newIORef $ lN[STR "a",STR "b"]
+    let e = [f'] 
+    let c = [LSet (0,1),Ld (0,1), Stop]
+    let d = []
+    exec g s e c d `shouldBeT` STR "c"
+
   describe "Ldc" $ do
     it "String Literal" $ do
       g <- H.new
@@ -58,15 +68,15 @@ spec = do
       let d = []
       exec g s e c d `shouldBeT` (INT 10)
 
-  describe "Ldg" $ do
+  describe "GSet" $ do
     describe "String Literal" $
       it "case 1" $ do
       g <- H.fromList [("a",INT 1),("b",STR "b")]
-      let s = []
+      let s = [STR "c"]
       let e = []
-      let c = [Ldg "b",Stop]
+      let c = [GSet "b", Ldg "b",Stop]
       let d = []
-      exec g s e c d `shouldBeT` (STR "b")
+      exec g s e c d `shouldBeT` (STR "c")
 
   describe "Args" $ do
     describe "xxxx" $
