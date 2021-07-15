@@ -64,6 +64,14 @@ comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs tail =
   comp env e (M.Def n : cs) False
 comp env (CELL (SYM "define-macro") (CELL (SYM n) (CELL e NIL))) cs tail =
   comp env e (M.Defm n : cs) False
+comp env@(g,e) (CELL (SYM "set!") (CELL (SYM n) (CELL v NIL))) cs tail = do
+  pos <- liftIO $ findPos n e
+  debugPrint $ "comp sym: sym=" ++ n
+  debugPrint $ "comp sym: e=" ++ (show e)
+  case pos of
+    Just (i,j) -> comp env v (M.LSet (i,j) : cs) False
+    Nothing    -> comp env v (M.GSet  n    : cs) False
+  
 comp env (CELL (SYM "quasiquote") (CELL e NIL) ) cs tail =
   throwE $ strMsg "quasiquote not yet supported"
 --  translator 0 comp env e cs
