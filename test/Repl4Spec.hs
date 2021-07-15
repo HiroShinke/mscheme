@@ -157,6 +157,46 @@ spec = do
       it "cons2" $ 
         "(cons 'a 'b)" `shouldBeEvaluated` (consM (M.SYM "a") (M.SYM "b"))
 
+  describe "set!" $ do
+      it "set1" $
+         "( (lambda (n m) (set! m 1) (list n m) ) 1 2) " `shouldBeEvaluated` lN[ M.INT 1,
+                                                                                 M.INT 1]
+      it "set2" $
+        "( (lambda (n m) \
+\               ((lambda (z) (set! m z)) n)\
+\               (list n m)\
+\              )\
+\            1 2) " `shouldBeEvaluated` lN[ M.INT 1,M.INT 1]
+
+      it "set3" $
+       "( (lambda (l m n) \
+\               ((lambda (l m)\
+\                   ((lambda (l)\
+\                     (set! l 10)\
+\                     (set! m 11)\
+\                     (set! n 12))\
+\                     l)\
+\                 )\
+\                l m)\
+\         (list l m n)\
+\         )\
+\         1 2 3)" `shouldBeEvaluated` lN[ M.INT 1,M.INT 2,M.INT 12]
+        
+      it "set4" $
+        "(define a 10) \
+\        ((lambda (n m) \
+\               ((lambda (z) (set! a z)) n)\
+\               (list n m)\
+\              )\
+\            1 2)\
+\         a" `shouldBeEvaluated` (M.INT 1)
+                                                                                 
+
+
+
+
+         
+  
 
 
 
