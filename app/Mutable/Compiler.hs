@@ -13,7 +13,7 @@ import qualified Mutable.SExpr as M
 import System.IO
 import Error
 import qualified SecdFuncs as F
--- import Translator
+import Mutable.Translator
 
 --- compile
 
@@ -73,8 +73,7 @@ comp env@(g,e) (CELL (SYM "set!") (CELL (SYM n) (CELL v NIL))) cs tail = do
     Nothing    -> comp env v (M.GSet  n    : cs) False
   
 comp env (CELL (SYM "quasiquote") (CELL e NIL) ) cs tail =
-  throwE $ strMsg "quasiquote not yet supported"
---  translator 0 comp env e cs
+  translator 0 comp env e cs
 comp env (CELL (SYM "unquote") (CELL e NIL) ) cs tail =
   throwE $ strMsg "unquote appeared outside quasiquote"
 comp env (CELL (SYM "unquote-splicing") (CELL e NIL) ) cs tail =

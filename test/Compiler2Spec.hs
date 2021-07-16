@@ -30,12 +30,19 @@ lN' (x:xs) = unsafePerformIO $ M.CELL <$> newIORef x <*> (listToCell xs >>= newI
 lN' []     = M.NIL
 
 
-
 shouldBeT ma b = do
   xa <- runExceptT ma
   case xa of
-    Right a -> a `shouldBe` b
+    Right a -> a `compareCode` b
     Left  e ->  putStrLn (show e)
+
+-- round about for failure of PRIM' equality
+compareCode a b =
+  primDummy a `shouldBe` primDummy b
+  where primDummy (M.Ldc (M.PRIM' _):cs)  = M.Ldc M.NIL : primDummy cs
+        primDummy (c:cs) = c : primDummy cs
+        primDummy []     = []
+
 
 list' :: M.SecdFunc
 list' _  e = return e
@@ -59,7 +66,6 @@ spec = do
                                                           M.Stop]
 
   let lmd = lN[ SYM "lambda", lN [ SYM "n" ], SYM "n" ]
-
 
   describe "test case" $
     it "lambda" $ do
