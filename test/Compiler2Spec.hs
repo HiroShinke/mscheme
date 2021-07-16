@@ -26,7 +26,7 @@ lN (x:xs) = (CELL x (lN xs))
 lN []     = NIL
 
 lN' :: [M.SExpr] -> M.SExpr
-lN' (x:xs) = unsafePerformIO $ M.CELL <$> newIORef x <*> (listToCell xs >>= newIORef )
+lN' (x:xs) = unsafePerformIO $ M.CELL <$> newIORef x <*> (M.listToCell xs >>= newIORef )
 lN' []     = M.NIL
 
 
@@ -159,7 +159,7 @@ spec = do
   describe "quote" $
     it "lambda" $ do 
     g <- H.new
-    l <- listToCell [ M.SYM "a",M.SYM "b" ]
+    l <- M.listToCell [ M.SYM "a",M.SYM "b" ]
     compile g (lN[ SYM "quote", lN[ SYM "a", SYM "b"] ] ) `shouldBeT` 
       [ M.Ldc l, M.Stop ]
       

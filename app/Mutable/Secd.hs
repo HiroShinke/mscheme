@@ -134,35 +134,6 @@ dumpString s e c d = do
            "c=" ++ (show c) ++ "," ++                         
            "d=" ++ (show d)
 
-listToCell :: [SExpr] -> IO SExpr
-listToCell (x:xs) = CELL <$> newIORef x <*> (listToCell xs >>= newIORef )
-listToCell []     = return NIL
-
-cellToList :: SExpr -> IO [SExpr]
-cellToList (CELL x xs) = do
-  xs' <- readIORef xs
-  case xs' of
-    NIL -> (:) <$> readIORef x <*> return []
-    _ -> (:) <$> readIORef x <*> cellToList xs'
-
-mtoi :: SExpr -> IO I.SExpr
-mtoi (INT  x) = return (I.INT  x)
-mtoi (REAL x) = return (I.REAL x)
-mtoi (SYM x)  = return (I.SYM  x)
-mtoi (STR x)  = return (I.STR  x)
-mtoi (BOOL x) = return (I.BOOL x)
-mtoi  NIL     = return  I.NIL
-mtoi (CELL x xs) = I.CELL <$> (readIORef x >>= mtoi) <*> (readIORef xs >>= mtoi)
-
-itom :: I.SExpr -> IO SExpr
-itom (I.INT  x) = return (INT  x)
-itom (I.REAL x) = return (REAL x)
-itom (I.SYM x)  = return (SYM  x)
-itom (I.STR x)  = return (STR  x)
-itom (I.BOOL x) = return (BOOL x)
-itom  I.NIL     = return  NIL
-itom (I.CELL x xs) = CELL <$> (itom x >>= newIORef) <*> (itom xs >>= newIORef )
-
 transPrim :: I.PrimFunc ->  PrimFunc
 transPrim f = \e -> do
     e' <- liftIO $ mtoi e

@@ -68,7 +68,7 @@ shouldBeEvaluated s v = do
                                 iter g xs' (v:accm)
 
 lN :: [M.SExpr] -> M.SExpr
-lN = unsafePerformIO . S.listToCell
+lN = unsafePerformIO . M.listToCell
 
 consM :: M.SExpr -> M.SExpr -> M.SExpr
 consM x xs = unsafePerformIO $

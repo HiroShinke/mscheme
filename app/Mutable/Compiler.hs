@@ -57,7 +57,7 @@ comp env (CELL (SYM "if") (CELL pred (CELL tb NIL ))) cs tail = if tail
 comp (g,e) (CELL (SYM "lambda") (CELL args body)) cs tail = do
   debugPrint $ "comp lambda: args=" ++ (show args)
   debugPrint $ "comp lambda: body=" ++ (show body)
-  args'  <- liftIO $ S.itom args >>= newIORef
+  args'  <- liftIO $ M.itom args >>= newIORef
   code <- compBody (g,(args':e)) body [M.Rtn]
   return $ M.Ldf code : cs
 comp env (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) cs tail =
@@ -93,10 +93,10 @@ comp env@(g,e) (CELL func@(SYM sym) args) cs tail = do
       debugPrint $ "apply macro: code=" ++ (show code)
       debugPrint $ "apply macro: e=" ++ (show e)
       debugPrint $ "apply macro: args="  ++ (show args)
-      args'  <- liftIO $ S.itom args >>= newIORef
+      args'  <- liftIO $ M.itom args >>= newIORef
       args'' <- S.exec g [] (args':e) code [M.Cont3 [] [] [M.Stop]]
       debugPrint $ "apply macro: args'="  ++ (show args')
-      args''' <- liftIO $ S.mtoi args''
+      args''' <- liftIO $ M.mtoi args''
       comp env args''' cs False
     Just _ -> comp' env (CELL func args) cs tail
     Nothing -> comp' env (CELL func args) cs tail

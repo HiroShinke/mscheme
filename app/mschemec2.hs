@@ -49,7 +49,7 @@ initGEnv = [("true",   M.true),
 
 load :: M.SecdFunc
 load g args = do
-  x <- liftIO $ S.mtoi args
+  x <- liftIO $ M.mtoi args
   load' g x
 
 load' g (CELL (STR filename) _ ) = do
@@ -67,7 +67,7 @@ load' g (CELL (STR filename) _ ) = do
                                 liftIO $ putStrLn "Code:"
                                 liftIO $ putStrLn (show code)
                                 v <- S.exec g [] [] code []
-                                v' <- liftIO $ S.mtoi v
+                                v' <- liftIO $ M.mtoi v
                                 liftIO $ putStrLn (show v)
                                 iter xs'
 load' _ _ = throwE $ strMsg "invalid load form"
@@ -87,7 +87,7 @@ repl g xs = do
                             case code of
                               Right cd ->  do
                                 v <- runExceptT $ S.exec g [] [] cd []
-                                v' <- mapM S.mtoi v
+                                v' <- mapM M.mtoi v
                                 putStrLn (show v')
                               Left err -> do
                                 putStrLn (show err)
