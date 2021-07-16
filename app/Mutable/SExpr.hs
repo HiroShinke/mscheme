@@ -248,3 +248,24 @@ type CompilerProc   = Env' -> I.SExpr -> [Code] -> Bool -> Scm [Code]
 type CompilerProc'  = Env' -> I.SExpr -> [Code] -> Scm [Code]
 type TranslatorProc = Env' -> I.SExpr -> [Code] -> Scm [Code]
 
+
+itomCode :: I.Code -> IO Code
+itomCode (I.Ld x)   = return $ Ld x
+itomCode (I.Ldc e)  = Ldc <$> itom e
+itomCode (I.Ldg s)  = return $ Ldg s
+itomCode (I.Ldf cs) = Ldf  <$> mapM itomCode cs
+itomCode (I.Ldct cs)= Ldct <$> mapM itomCode cs
+itomCode (I.Args n)   = return $ Args n
+itomCode (I.ArgsAp n) = return $ ArgsAp n
+itomCode  I.App     = return $ App
+itomCode  I.TApp    = return $ TApp
+itomCode  I.Rtn     = return  $ Rtn
+itomCode (I.Sel cs cs')  = Sel  <$> mapM itomCode cs <*> mapM itomCode cs'
+itomCode (I.Selr cs cs') = Selr <$> mapM itomCode cs <*> mapM itomCode cs'
+itomCode  I.Join     = return $ Join
+itomCode  I.Pop      = return $ Pop
+itomCode  I.Stop     = return $ Stop
+itomCode  I.Dump     = return $ Dump
+itomCode (I.Def s)   = return $ Def s
+itomCode (I.Defm s)  = return $ Defm s
+

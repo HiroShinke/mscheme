@@ -33,7 +33,7 @@ comp (g,e) v@(SYM name) cs tail = do
     Just (i,j) -> return $ M.Ld (i,j) : cs
     Nothing    -> return $ M.Ldg name : cs
 comp env (CELL (SYM "quote") (CELL e NIL) ) cs  tail =
-  liftIO $ (:) <$> S.itomCode (Ldc e) <*> return cs
+  liftIO $ (:) <$> M.itomCode (Ldc e) <*> return cs
 comp env (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) cs tail = if tail
   then do
   tc <- comp env tb [M.Rtn] True
