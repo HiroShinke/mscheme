@@ -21,20 +21,36 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
-- text == 1.2.4.1
-- filepath == 1.4.2.1
-- llvm-hs-pure == 9.0.0
-- llvm-hs-pretty == 0.6.2.0
-- containers == 0.6.2.1
-- bytestring == 0.10.12.0
+- hashtables
+- transformers
+- mtl
 
 library:
-  source-dirs:
-  - src
-  - app
+  source-dirs: src/
   dependencies:
-  - hashtables
-  - transformers
+  - text == 1.2.4.1
+  - filepath == 1.4.2.1
+  - llvm-hs-pure == 9.0.0
+  - llvm-hs-pretty == 0.6.2.0
+  - containers == 0.6.2.1
+  - bytestring == 0.10.12.0
+  exposed-modules:
+  - Secd
+  - Mutable.Secd
+  - Mutable.Translator
+  - Mutable.Compiler
+  - Mutable.SecdFuncs
+  - Mutable.SExpr
+  - Reader
+  - Evaluator
+  - LLVM.Compiler
+  - Translator
+  - Primitives
+  - Primitives.Primitives
+  - Compiler
+  - Error
+  - SecdFuncs
+  - SExpr
 
 executables:
   mscheme:
@@ -45,9 +61,8 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - hashtables
-    - mtl
-    - transformers
+    - mscheme
+
   mscheme2:
     main:                mscheme2.hs
     source-dirs:         app
@@ -56,9 +71,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - hashtables
-    - mtl
-    - transformers
+    - mscheme
 
   mschemec:
     main:                mschemec.hs
@@ -68,10 +81,8 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - hashtables
-    - mtl
-    - transformers
-
+    - mscheme
+    
   mschemec2:
     main:                mschemec2.hs
     source-dirs:         app
@@ -80,10 +91,8 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - hashtables
-    - mtl
-    - transformers
-
+    - mscheme
+    
   mschemellvm:
     main:                mschemellvm.hs
     source-dirs:         app
@@ -92,10 +101,9 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - hashtables
-    - mtl
-    - transformers
-
+    - mscheme
+    - text == 1.2.4.1
+    - filepath == 1.4.2.1
 
 tests:
   mscheme-test:
