@@ -63,6 +63,20 @@ comp v@(SYM name) = mdo
   case binds Map.!? name of
     Just x -> pure x
     Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
+comp (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) = mdo
+  pred' <- comp pred 
+  cnd <- icmp P.EQ (ConstantOperand (C.Int 32 0)) pred'
+  condBr cnd tb' eb'
+  tb' <- block `named` "thenB"
+  tr <- comp tb
+  br mb
+  eb' <- block `named` "elseB"
+  er <- comp eb
+  br mb
+  mb <-  block `named` "mergeB"
+  phi [(tr,tb'),(er,eb')]
+
+  
 comp (CELL func@(SYM sym) args) = mdo
   let es = cellToList args
   let n  = length es
