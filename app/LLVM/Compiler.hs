@@ -3,6 +3,7 @@
 
 module LLVM.Compiler where
 
+import qualified  Data.Text.Lazy as T
 import Data.Text.Internal.Lazy
 import qualified Data.HashTable.IO as H
 import Control.Monad.Trans.Except
@@ -44,8 +45,8 @@ toName _       = error "not symbol"
 
 --- compile
 
-compile :: [SExpr] -> Text
-compile exprs = ppllvm $ buildModule "main" $ mdo
+compile :: [SExpr] -> String
+compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   form <- globalStringPtr "%d\n" "putNumForm"
   printf <- externVarArgs "printf" [ptr i8] i32
   function "main" [] i32 $ \[] -> mdo
