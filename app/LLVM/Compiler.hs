@@ -49,24 +49,21 @@ compile :: [SExpr] -> String
 compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   form <- globalStringPtr "%d\n" "putNumForm"
   printf <- externVarArgs "printf" [ptr i8] i32
+  rs <- mapM compT exprs
   function "main" [] i32 $ \[] -> mdo
-    let binds = Map.fromList [] :: Binds    
-    rs <- flip runReaderT binds $ mapM comp exprs
     let n = length rs
-    call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
+    r <- call (rs!!(n-1)) []
+    call printf [(ConstantOperand form, []), (r, [])]
     ret (int32 0)
 
 comp :: SExpr -> ReaderT Binds (IRBuilderT (ModuleBuilderT Identity)) Operand
 comp v@(INT n) = return (int32 n)
-comp v@(SYM name) = do
+comp v@(SYM name) = mdo
   binds <- ask
   case binds Map.!? name of
     Just x -> pure x
     Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
-
-comp (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = compFunction n e
-
-comp (CELL func@(SYM sym) args) = do
+comp (CELL func@(SYM sym) args) = mdo
   let es = cellToList args
   let n  = length es
   es' <- mapM comp es
@@ -75,18 +72,24 @@ comp (CELL func@(SYM sym) args) = do
     "-" -> sub (es'!!0) (es'!!1)
     "*" -> mul (es'!!0) (es'!!1)
     "/" -> sdiv (es'!!0) (es'!!1)
-    _   -> do
+    _   -> mdo
       let typ = FunctionType i32 (replicate n i32) False
       let ptrTyp = AST.PointerType typ (AddrSpace 0)
       let ref = GlobalReference ptrTyp (mkName sym)
       call (ConstantOperand ref) (zip es' (repeat []))
+comp e = error $ "error :e=" ++ (show e)
 
-compFunction :: String -> SExpr -> ReaderT Binds (IRBuilderT (ModuleBuilderT Identity)) Operand
-compFunction nameStr (CELL (SYM "lambda") (CELL args body)) = do
+compBody es = mapM comp (cellToList es)
+  
+compT :: SExpr -> (ModuleBuilderT Identity) Operand
+compT (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = compT' n e
+compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
   let n = fromString nameStr
-  lift $ lift $ function n params i32 $ \ops -> do
+  function n params i32 $ \ops -> mdo
     let binds = Map.fromList (zip argNams ops)
-    (flip runReaderT binds $ comp body ) >>= ret
+    rs <- flip runReaderT binds $ compBody body
+    let m = length rs
+    ret $ rs!!(m-1)
   where argNams = Prelude.map toName (cellToList args)
         params = zip (repeat i32) (Prelude.map (ParameterName . fromString) argNams)
 
