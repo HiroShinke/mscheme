@@ -19,6 +19,7 @@ This repository includes the following executables:
 * mscheme2  : interpreter(CPS version)
 * mschemec  : compiler and vertual machine
 * mschemec2 : compiler and vertual machine for mutable cells
+* mschemellvm : compiler for LLVM IR code generation (experimental)
 
 You can go to the top directory and 
 compile and run tests with next command:
@@ -34,3 +35,5 @@ stack exec mscheme2
 stack exec mschemec
 stack exec mschemec2
 ```
+For usage of mschemellvm, see test/testllvm.sh. 
+
