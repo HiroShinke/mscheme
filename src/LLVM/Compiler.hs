@@ -27,7 +27,8 @@ import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Constant
-import Data.Map as Map
+import Data.List as L
+import qualified Data.Map as Map
 import Data.String
 -- import qualified Data.ByteString.Short as B
 
@@ -47,14 +48,20 @@ toName _       = error "not symbol"
 
 compile :: [SExpr] -> String
 compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
+  let (defs,rest) = L.partition isDefine exprs
   form <- globalStringPtr "%d\n" "putNumForm"
   printf <- externVarArgs "printf" [ptr i8] i32
-  rs <- mapM compT exprs
+  mapM compT defs
   function "main" [] i32 $ \[] -> mdo
-    let n = length rs
-    r <- call (rs!!(n-1)) []
-    call printf [(ConstantOperand form, []), (r, [])]
+    let binds = Map.fromList []
+    rs <- flip runReaderT binds $ mapM comp rest
+    let n = length rs    
+    call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
     ret (int32 0)
+  where
+    isDefine :: SExpr -> Bool
+    isDefine (CELL (SYM "define") _) = True
+    isDefine _                       = False
 
 comp :: SExpr -> ReaderT Binds (IRBuilderT (ModuleBuilderT Identity)) Operand
 comp v@(INT n) = return (int32 n)
