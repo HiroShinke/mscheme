@@ -72,8 +72,7 @@ comp v@(SYM name) = mdo
     Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
 comp (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) = mdo
   pred' <- comp pred 
-  cnd <- icmp P.EQ (ConstantOperand (C.Int 32 0)) pred'
-  condBr cnd tb' eb'
+  condBr pred' tb' eb'
   tb' <- block `named` "thenB"
   tr <- comp tb
   br mb
@@ -93,11 +92,16 @@ comp (CELL func@(SYM sym) args) = mdo
     "-" -> sub (es'!!0) (es'!!1)
     "*" -> mul (es'!!0) (es'!!1)
     "/" -> sdiv (es'!!0) (es'!!1)
+    "="  -> icmp P.EQ (es'!!0) (es'!!1)
+    "!=" -> icmp P.NE (es'!!0) (es'!!1)
+    "<"  -> icmp P.UGT (es'!!0) (es'!!1)
+    ">"  -> icmp P.ULT (es'!!0) (es'!!1)
     _   -> mdo
       let typ = FunctionType i32 (replicate n i32) False
       let ptrTyp = AST.PointerType typ (AddrSpace 0)
       let ref = GlobalReference ptrTyp (mkName sym)
       call (ConstantOperand ref) (zip es' (repeat []))
+
 comp e = error $ "error :e=" ++ (show e)
 
 compBody es = mapM comp (cellToList es)
