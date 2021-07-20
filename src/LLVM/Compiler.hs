@@ -10,6 +10,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 import Control.Monad.Trans.State
+import Control.Monad.Fix
 import SExpr
 import Error
 
@@ -63,7 +64,7 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
     isDefine (CELL (SYM "define") _) = True
     isDefine _                       = False
 
-comp :: SExpr -> StateT Binds (IRBuilderT (ModuleBuilderT Identity)) Operand
+comp :: (MonadFix m,MonadIRBuilder m) =>  SExpr -> StateT Binds m Operand
 comp v@(INT n) = return (int32 n)
 comp v@(SYM name) = mdo
   binds <- get
@@ -106,12 +107,12 @@ comp e = error $ "error :e=" ++ (show e)
 
 compBody es = mapM comp (cellToList es)
   
-compT :: SExpr -> StateT Binds (ModuleBuilderT Identity) Operand
+compT :: (MonadFix m,MonadModuleBuilder m) => SExpr -> StateT Binds m Operand
 compT (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = compT' n e
 compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
   let n = fromString nameStr
   env <- get  
-  lift $ function n params i32 $ \ops -> mdo
+  function n params i32 $ \ops -> mdo
     let env' = insertNVList env (zip argNames ops)
     (rs,_) <- flip runStateT env' $ compBody body
     let m = length rs
@@ -122,10 +123,10 @@ compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
                                       in  Map.insert n v env'
         insertNVList env []         = env
 -- compT' nameStr e = mdo
---   let n = fromString nameStr
---   env <- get    
---   v <- comp e
---   let env' = Map.insert n v env
---   put env'
---   return v
+--    let n = fromString nameStr
+--    env <- get    
+--    v <- comp e
+--    let env' = Map.insert n v env
+--    put env'
+--    return v
   
