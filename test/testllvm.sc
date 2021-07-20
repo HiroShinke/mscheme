@@ -20,6 +20,7 @@
 
 (showInt (fib 10))
 
+(define plus (lambda (n m) (+ n m)))
 
-
+(showInt (plus 10 20))
 
