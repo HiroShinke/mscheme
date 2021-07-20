@@ -59,7 +59,10 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
     let n = length rs    
     call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
     ret (int32 0)
-  where
+  function "showInt" [(i32,"n")] i32 $ \[n] -> mdo
+    call printf [(ConstantOperand form, []), (n, [])]
+    ret (int32 0)
+   where
     isDefine :: SExpr -> Bool
     isDefine (CELL (SYM "define") _) = True
     isDefine _                       = False
@@ -95,8 +98,8 @@ comp (CELL func@(SYM sym) args) = mdo
     "/" -> sdiv (es'!!0) (es'!!1)
     "="  -> icmp P.EQ (es'!!0) (es'!!1)
     "!=" -> icmp P.NE (es'!!0) (es'!!1)
-    "<"  -> icmp P.UGT (es'!!0) (es'!!1)
-    ">"  -> icmp P.ULT (es'!!0) (es'!!1)
+    ">"  -> icmp P.UGT (es'!!0) (es'!!1)
+    "<"  -> icmp P.ULT (es'!!0) (es'!!1)
     _   -> mdo
       let typ = FunctionType i32 (replicate n i32) False
       let ptrTyp = AST.PointerType typ (AddrSpace 0)
