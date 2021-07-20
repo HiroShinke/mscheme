@@ -9,7 +9,7 @@ import qualified Data.HashTable.IO as H
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State
 import SExpr
 import Error
 
@@ -34,7 +34,7 @@ import Data.String
 
 type LLVMBuilder = IRBuilderT (ModuleBuilderT Identity)
 type Binds = Map.Map String Operand
--- type Func = Expr -> ReaderT Binds (IRBuilderT ModuleBuilder) Operand
+-- type Func = Expr -> StateT Binds (IRBuilderT ModuleBuilder) Operand
 
 cellToList :: SExpr -> [SExpr]
 cellToList (CELL x xs) = x : cellToList xs
@@ -51,10 +51,10 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   let (defs,rest) = L.partition isDefine exprs
   form <- globalStringPtr "%d\n" "putNumForm"
   printf <- externVarArgs "printf" [ptr i8] i32
-  mapM compT defs
+  let binds = Map.fromList []
+  flip runStateT binds $ mapM compT defs
   function "main" [] i32 $ \[] -> mdo
-    let binds = Map.fromList []
-    rs <- flip runReaderT binds $ mapM comp rest
+    (rs,_) <- flip runStateT binds $ mapM comp rest
     let n = length rs    
     call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
     ret (int32 0)
@@ -63,10 +63,10 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
     isDefine (CELL (SYM "define") _) = True
     isDefine _                       = False
 
-comp :: SExpr -> ReaderT Binds (IRBuilderT (ModuleBuilderT Identity)) Operand
+comp :: SExpr -> StateT Binds (IRBuilderT (ModuleBuilderT Identity)) Operand
 comp v@(INT n) = return (int32 n)
 comp v@(SYM name) = mdo
-  binds <- ask
+  binds <- get
   case binds Map.!? name of
     Just x -> pure x
     Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
@@ -106,16 +106,26 @@ comp e = error $ "error :e=" ++ (show e)
 
 compBody es = mapM comp (cellToList es)
   
-compT :: SExpr -> (ModuleBuilderT Identity) Operand
+compT :: SExpr -> StateT Binds (ModuleBuilderT Identity) Operand
 compT (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = compT' n e
 compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
   let n = fromString nameStr
-  function n params i32 $ \ops -> mdo
-    let binds = Map.fromList (zip argNams ops)
-    rs <- flip runReaderT binds $ compBody body
+  env <- get  
+  lift $ function n params i32 $ \ops -> mdo
+    let env' = insertNVList env (zip argNames ops)
+    (rs,_) <- flip runStateT env' $ compBody body
     let m = length rs
     ret $ rs!!(m-1)
-  where argNams = Prelude.map toName (cellToList args)
-        params = zip (repeat i32) (Prelude.map (ParameterName . fromString) argNams)
-
-
+  where argNames = Prelude.map toName (cellToList args)
+        params = zip (repeat i32) (Prelude.map (ParameterName . fromString) argNames)
+        insertNVList env ((n,v):xs) = let env' = insertNVList env xs
+                                      in  Map.insert n v env'
+        insertNVList env []         = env
+-- compT' nameStr e = mdo
+--   let n = fromString nameStr
+--   env <- get    
+--   v <- comp e
+--   let env' = Map.insert n v env
+--   put env'
+--   return v
+  
