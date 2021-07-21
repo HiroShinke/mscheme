@@ -1,5 +1,9 @@
 
 
+(define a 1)
+(define b 2)
+
+
 (define perm (lambda (n)
 	(if (= n 0) 1 (* n (perm (- n 1)) ))))
 	    
@@ -23,4 +27,6 @@
 (define plus (lambda (n m) (+ n m)))
 
 (showInt (plus 10 20))
+
+(showInt (plus a b))
 

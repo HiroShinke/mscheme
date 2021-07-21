@@ -34,7 +34,9 @@ import Data.String
 -- import qualified Data.ByteString.Short as B
 
 type LLVMBuilder = IRBuilderT (ModuleBuilderT Identity)
-type Binds = Map.Map String Operand
+type GVars= Map.Map String Operand
+type LVars= Map.Map String Operand
+type Binds = (GVars,LVars)
 -- type Func = Expr -> StateT Binds (IRBuilderT ModuleBuilder) Operand
 
 cellToList :: SExpr -> [SExpr]
@@ -50,15 +52,17 @@ toName _       = error "not symbol"
 compile :: [SExpr] -> String
 compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   let (defs,rest) = L.partition isDefine exprs
+  let (_,defs')   = L.partition isDefineFunc defs
   form <- globalStringPtr "%d\n" "putNumForm"
   printf <- externVarArgs "printf" [ptr i8] i32
-  let binds = Map.fromList []
-  flip runStateT binds $ mapM compT defs
+  let binds = (Map.fromList [],Map.fromList[])
+  (_,binds') <- flip runStateT binds $ mapM compT defs
   function "main" [] i32 $ \[] -> mdo
-    (rs,_) <- flip runStateT binds $ mapM comp rest
+    (_,_)  <- flip runStateT binds' $ mapM initDef defs'
+    (rs,_) <- flip runStateT binds' $ mapM comp rest
     let n = length rs    
     call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
-    ret (int32 0)
+    ret $ (int32 0)
   function "showInt" [(i32,"n")] i32 $ \[n] -> mdo
     call printf [(ConstantOperand form, []), (n, [])]
     ret (int32 0)
@@ -66,14 +70,19 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
     isDefine :: SExpr -> Bool
     isDefine (CELL (SYM "define") _) = True
     isDefine _                       = False
+    isDefineFunc (CELL (SYM "define") (CELL (SYM n) (CELL (CELL (SYM "lambda") _) _))) = True
+    isDefineFunc _                                                                     = False
 
 comp :: (MonadFix m,MonadIRBuilder m) =>  SExpr -> StateT Binds m Operand
 comp v@(INT n) = return (int32 n)
 comp v@(SYM name) = mdo
-  binds <- get
-  case binds Map.!? name of
+  (gvars,lvars) <- get
+  case lvars Map.!? name of
     Just x -> pure x
-    Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
+    Nothing -> case gvars Map.!? name of
+                 Just x -> load x 0
+                 Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
+
 comp (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) = mdo
   pred' <- comp pred 
   condBr pred' tb' eb'
@@ -114,10 +123,10 @@ compT :: (MonadFix m,MonadModuleBuilder m) => SExpr -> StateT Binds m Operand
 compT (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = compT' n e
 compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
   let n = fromString nameStr
-  env <- get  
+  (gvars,lvars) <- get  
   function n params i32 $ \ops -> mdo
-    let env' = insertNVList env (zip argNames ops)
-    (rs,_) <- flip runStateT env' $ compBody body
+    let lvars' = insertNVList lvars (zip argNames ops)
+    (rs,_) <- flip runStateT (gvars,lvars') $ compBody body
     let m = length rs
     ret $ rs!!(m-1)
   where argNames = Prelude.map toName (cellToList args)
@@ -125,11 +134,23 @@ compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
         insertNVList env ((n,v):xs) = let env' = insertNVList env xs
                                       in  Map.insert n v env'
         insertNVList env []         = env
--- compT' nameStr e = mdo
---    let n = fromString nameStr
---    env <- get    
---    v <- comp e
---    let env' = Map.insert n v env
---    put env'
---    return v
+compT' nameStr e = mdo
+  let n = fromString nameStr
+  (gvars,lvars) <- get
+  v <- global n i32 (C.Int 0 0)
+  let gvars' = Map.insert nameStr v gvars
+  put (gvars',lvars)
+  return v
+
+initDef (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = do
+  (gvars,lvars) <- get  
+  case gvars Map.!? n of
+    Just x -> do
+      r <- comp e
+      store x 0 r
+    Nothing -> error $ "'" <> n <> "' doesn't exist in scope"
+
+
+
+  
   
