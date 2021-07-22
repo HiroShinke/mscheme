@@ -15,12 +15,7 @@ Thanks to Mr. Hiroi.
 These pages has lot of interesting things for me.
 
 This repository includes the following executables: 
-* mscheme   : interpreter
-* mscheme2  : interpreter(CPS version)
-* mschemec  : compiler and vertual machine
-* mschemec2 : compiler and vertual machine for mutable cells
-* mschemellvm : compiler for LLVM IR code generation (experimental)
-
+ç
 You can go to the top directory and 
 compile and run tests with next command:
 
@@ -37,3 +32,15 @@ stack exec mschemec2
 ```
 For usage of mschemellvm, see test/testllvm.sh. 
 
+```shell
+stack exec mschemellvm testllvm.sc
+llc testllvm.ll 
+gcc -o testllvm testllvm.s
+./testllvm
+```
+
+There are many restrictions at now (and forever)
+- only 32bit integer variable is supported
+- no closure
+- no macro
+- no list
