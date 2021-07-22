@@ -57,8 +57,8 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   forms <- globalStringPtr "%s\n" "putStringForm"
   printf <- externVarArgs "printf" [ptr i8] i32
   let binds = (Map.fromList [],Map.fromList[])
-  (_,binds') <-  flip runStateT binds  $
-                 mapM_ ( createGlobalStringPtr . flip stringLiterals [] ) exprs 
+  (_,(binds',_)) <-  flip runStateT (binds,0)  $
+                     mapM_ ( createGlobalStringPtr . flip stringLiterals [] ) exprs 
   (_,binds'') <- flip runStateT binds' $ mapM compT defs
   function "main" [] i32 $ \[] -> mdo
     (_,_)  <- flip runStateT binds'' $ mapM initDef defs'
@@ -168,14 +168,14 @@ stringLiterals (STR str) accm   = str : accm
 stringLiterals (CELL x xs) accm = stringLiterals x (stringLiterals xs accm)
 stringLiterals _ accm = accm  
 
-createGlobalStringPtr :: (MonadFix m,MonadModuleBuilder m) => [String] -> StateT Binds m ()
-createGlobalStringPtr xs = iter xs 0
+createGlobalStringPtr :: (MonadFix m,MonadModuleBuilder m) => [String] -> StateT (Binds,Int) m ()
+createGlobalStringPtr xs = iter xs
   where
-    iter (x:xs) n = do
-      (gvars,lvars) <- get
+    iter (x:xs) = do
+      ((gvars,lvars),n) <- get
       v <- globalStringPtr x (fromString ("gvar_" ++ (show n)))
       let gvars' = Map.insert x (ConstantOperand v) gvars
-      put (gvars',lvars)
-      iter xs (n+1)
-    iter [] _ = return ()
+      put ((gvars',lvars),n+1)
+      iter xs
+    iter [] = return ()
       
