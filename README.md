@@ -49,7 +49,8 @@ gcc -o testllvm testllvm.s
 ```
 
 There are many restrictions in current version (and maybe also in later versions)
-- only 32bit integer variable is supported.
-- only +,-,*,/,=,!=,<,>,showInt,showStr primitive functions are supported.
+- Only 32bit integer and string type global variables are supported.
+- Only +,-,*,/,=,!=,<,>,showInt,showStr primitive functions are supported.
 - (define xx (lambda (args ...) expressions...)) style user function definition is supported.
+  Function arguments are must be 32bit integer.
 

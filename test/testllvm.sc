@@ -2,7 +2,7 @@
 
 (define a 1)
 (define b 2)
-
+(define c "Hello, LLVM3")
 
 (define perm (lambda (n)
 	(if (= n 0) 1 (* n (perm (- n 1)) ))))
@@ -33,6 +33,10 @@
 (showStr "Hello, LLVM1")
 
 (showStr "Hello, LLVM2")
+
+(showStr c)
+
+
 
 
 

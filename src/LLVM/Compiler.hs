@@ -60,15 +60,18 @@ compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   (_,(binds',_)) <-  flip runStateT (binds,0)  $
                      mapM_ ( createGlobalStringPtr . flip stringLiterals [] ) exprs 
   (_,binds'') <- flip runStateT binds' $ mapM compT defs
+
   function "main" [] i32 $ \[] -> mdo
     (_,_)  <- flip runStateT binds'' $ mapM initDef defs'
     (rs,_) <- flip runStateT binds'' $ mapM comp rest
     let n = length rs    
     call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
     ret $ (int32 0)
+
   function "showInt" [(i32,"n")] i32 $ \[n] -> mdo
     call printf [(ConstantOperand form, []), (n, [])]
     ret (int32 0)
+
   function "showStr" [(ptr i8,"s")] i32 $ \[s] -> mdo
     call printf [(ConstantOperand forms, []), (s, [])]
     ret (int32 0)
@@ -146,6 +149,13 @@ compT' nameStr (CELL (SYM "lambda") (CELL args body)) = mdo
         insertNVList env ((n,v):xs) = let env' = insertNVList env xs
                                       in  Map.insert n v env'
         insertNVList env []         = env
+compT' nameStr (STR str) = mdo
+  let n = fromString nameStr
+  (gvars,lvars) <- get
+  v <- global n (ptr i8) (C.Null (ptr i8))
+  let gvars' = Map.insert nameStr v gvars
+  put (gvars',lvars)
+  return v
 compT' nameStr e = mdo
   let n = fromString nameStr
   (gvars,lvars) <- get
