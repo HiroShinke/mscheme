@@ -52,5 +52,5 @@ There are many restrictions in current version (and maybe also in later versions
 - Only 32bit integer and string type global variables are supported.
 - Only +,-,*,/,=,!=,<,>,showInt,showStr primitive functions are supported.
 - (define xx (lambda (args ...) expressions...)) style user function definition is supported.
-  Function arguments are must be 32bit integer.
+  Function arguments must be 32bit integer.
 
