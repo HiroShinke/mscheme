@@ -35,5 +35,21 @@ stack exec mscheme2
 stack exec mschemec
 stack exec mschemec2
 ```
+
+## mschemellvm
+
 For usage of mschemellvm, see test/testllvm.sh. 
+You should have LLVM installed.
+
+```shell
+stack exec mschemellvm testllvm.sc
+llc testllvm.ll 
+gcc -o testllvm testllvm.s
+./testllvm
+```
+
+There are many restrictions in current version (and maybe also in later versions)
+- only 32bit integer variable is supported.
+- only +,-,*,/,=,!=,<,>,showInt,showStr primitive functions are supported.
+- (define xx (lambda (args ...) expressions...)) style user function definition is supported.
 
