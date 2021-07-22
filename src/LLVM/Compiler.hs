@@ -53,20 +53,26 @@ compile :: [SExpr] -> String
 compile exprs = T.unpack $ ppllvm $ buildModule "main" $ mdo
   let (defs,rest) = L.partition isDefine exprs
   let (_,defs')   = L.partition isDefineFunc defs
-  form <- globalStringPtr "%d\n" "putNumForm"
+  form  <- globalStringPtr "%d\n" "putNumForm"
+  forms <- globalStringPtr "%s\n" "putStringForm"
   printf <- externVarArgs "printf" [ptr i8] i32
   let binds = (Map.fromList [],Map.fromList[])
-  (_,binds') <- flip runStateT binds $ mapM compT defs
+  (_,binds') <-  flip runStateT binds  $
+                 mapM_ ( createGlobalStringPtr . flip stringLiterals [] ) exprs 
+  (_,binds'') <- flip runStateT binds' $ mapM compT defs
   function "main" [] i32 $ \[] -> mdo
-    (_,_)  <- flip runStateT binds' $ mapM initDef defs'
-    (rs,_) <- flip runStateT binds' $ mapM comp rest
+    (_,_)  <- flip runStateT binds'' $ mapM initDef defs'
+    (rs,_) <- flip runStateT binds'' $ mapM comp rest
     let n = length rs    
     call printf [(ConstantOperand form, []), (rs!!(n-1), [])]
     ret $ (int32 0)
   function "showInt" [(i32,"n")] i32 $ \[n] -> mdo
     call printf [(ConstantOperand form, []), (n, [])]
     ret (int32 0)
-   where
+  function "showStr" [(ptr i8,"s")] i32 $ \[s] -> mdo
+    call printf [(ConstantOperand forms, []), (s, [])]
+    ret (int32 0)
+  where
     isDefine :: SExpr -> Bool
     isDefine (CELL (SYM "define") _) = True
     isDefine _                       = False
@@ -82,6 +88,12 @@ comp v@(SYM name) = mdo
     Nothing -> case gvars Map.!? name of
                  Just x -> load x 0
                  Nothing -> error $ "'" <> name <> "' doesn't exist in scope"
+
+comp v@(STR str) = mdo
+  (gvars,lvars) <- get
+  case gvars Map.!? str of
+    Just x -> pure x
+    Nothing -> error $ "'" <> str <> "' doesn't exist in scope"
 
 comp (CELL (SYM "if") (CELL pred (CELL tb (CELL eb NIL) ))) = mdo
   pred' <- comp pred 
@@ -151,6 +163,19 @@ initDef (CELL (SYM "define") (CELL (SYM n) (CELL e NIL))) = do
     Nothing -> error $ "'" <> n <> "' doesn't exist in scope"
 
 
+stringLiterals :: SExpr -> [String] -> [String]
+stringLiterals (STR str) accm   = str : accm
+stringLiterals (CELL x xs) accm = stringLiterals x (stringLiterals xs accm)
+stringLiterals _ accm = accm  
 
-  
-  
+createGlobalStringPtr :: (MonadFix m,MonadModuleBuilder m) => [String] -> StateT Binds m ()
+createGlobalStringPtr xs = iter xs 0
+  where
+    iter (x:xs) n = do
+      (gvars,lvars) <- get
+      v <- globalStringPtr x (fromString ("gvar_" ++ (show n)))
+      let gvars' = Map.insert x (ConstantOperand v) gvars
+      put (gvars',lvars)
+      iter xs (n+1)
+    iter [] _ = return ()
+      

@@ -30,3 +30,6 @@
 
 (showInt (plus a b))
 
+(showStr "Hello, LLVM")
+
+
